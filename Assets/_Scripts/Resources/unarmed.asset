@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67ac1fc26386361409ab3b23631f0673, type: 3}
+  m_Name: unarmed
+  m_EditorClassIdentifier: 
+  animatorOverride: {fileID: 22100000, guid: a50a47e48a1079e449e0cdade4d67922, type: 2}
+  activeWeapon: {fileID: 5665496836570528111, guid: 847c63c5c0bdb7e468b2e9f491fc3bce,
+    type: 3}
+  equippedPrefab: {fileID: 1642627153335238001, guid: 847c63c5c0bdb7e468b2e9f491fc3bce,
+    type: 3}
+  projectile: {fileID: 0}
+  weaponTitle: unarmed
+  isPistol: 0
+  isRifle: 0
+  isMelee: 1
+  isEMP: 0
+  itemID: b0adc3f7-861b-4559-860e-aae8187e9385
+  displayName: 
+  description: 
+  icon: {fileID: 0}
+  pickup: {fileID: 0}
+  stackable: 0

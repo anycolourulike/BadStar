@@ -1,0 +1,188 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &425496628534555624
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 425496628534555626}
+  - component: {fileID: 425496628534555625}
+  m_Layer: 0
+  m_Name: GameAssets
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &425496628534555626
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 425496628534555624}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -12, y: 0, z: -1.0391335}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &425496628534555625
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 425496628534555624}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71ed1b9e3aebf574ba9fcc0c44d62ceb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  weaponAudioClipArray:
+  - weaponSFX: 0
+    weaponClip: {fileID: 8300000, guid: f6cb1f581b7444b23a05b613a16420d5, type: 3}
+  - weaponSFX: 1
+    weaponClip: {fileID: 8300000, guid: 5a5c1c9ff44839447b3c9beb08a5b9f7, type: 3}
+  - weaponSFX: 2
+    weaponClip: {fileID: 8300000, guid: 31b671add4416b849bdb80fe9a988668, type: 3}
+  - weaponSFX: 3
+    weaponClip: {fileID: 8300000, guid: b0f8e09ec4b9fa049bd610bc555bf445, type: 3}
+  - weaponSFX: 4
+    weaponClip: {fileID: 8300000, guid: 6897bcb188e4dfe4a8b9892269450696, type: 3}
+  - weaponSFX: 5
+    weaponClip: {fileID: 8300000, guid: 653d50a3f05c359498151ed5c9365c5f, type: 3}
+  - weaponSFX: 6
+    weaponClip: {fileID: 8300000, guid: 90115a0fe3e8b4e098b1111cc014a9cc, type: 3}
+  - weaponSFX: 7
+    weaponClip: {fileID: 8300000, guid: 3db1284c00dd04218991196e8edbee63, type: 3}
+  - weaponSFX: 8
+    weaponClip: {fileID: 8300000, guid: f6727888a13262d44acfcc216821d28b, type: 3}
+  - weaponSFX: 9
+    weaponClip: {fileID: 8300000, guid: 082f5100091a0834e8bb319a05833eb4, type: 3}
+  - weaponSFX: 8
+    weaponClip: {fileID: 8300000, guid: f6727888a13262d44acfcc216821d28b, type: 3}
+  enviromentAudioClipArray:
+  - enviromentSFX: 0
+    enviromentClip: {fileID: 8300000, guid: b4411a042aaea554b8ad110c078b4207, type: 3}
+  - enviromentSFX: 1
+    enviromentClip: {fileID: 8300000, guid: 9e93a98bfb3d5284a8172098a38ffc5b, type: 3}
+  - enviromentSFX: 2
+    enviromentClip: {fileID: 8300000, guid: a6093188e8317884f8b3e834fce43325, type: 3}
+  - enviromentSFX: 3
+    enviromentClip: {fileID: 8300000, guid: 39a362d81bd53264abb43d907d68ba78, type: 3}
+  - enviromentSFX: 4
+    enviromentClip: {fileID: 8300000, guid: 18b60bdd6bc408f44b8a0c4206ab45c1, type: 3}
+  - enviromentSFX: 5
+    enviromentClip: {fileID: 8300000, guid: 2fab48bb3f294c84f9cf2db4959ec7d6, type: 3}
+  - enviromentSFX: 6
+    enviromentClip: {fileID: 8300000, guid: 22ed083e371bf49349fb30154ce04980, type: 3}
+  - enviromentSFX: 7
+    enviromentClip: {fileID: 8300000, guid: d8993173e645e423280e398176116d07, type: 3}
+  - enviromentSFX: 8
+    enviromentClip: {fileID: 8300000, guid: d678815e85a4c1a4b833b725d994e4e2, type: 3}
+  - enviromentSFX: 9
+    enviromentClip: {fileID: 8300000, guid: d25f3ac75cb1ba1488e512b532791153, type: 3}
+  - enviromentSFX: 10
+    enviromentClip: {fileID: 8300000, guid: 7b7d666e88f9a254cacbe4244e0f45dc, type: 3}
+  - enviromentSFX: 7
+    enviromentClip: {fileID: 8300000, guid: 9cdb9d9ac451fdb4694a8a7ada086da5, type: 3}
+  - enviromentSFX: 8
+    enviromentClip: {fileID: 8300000, guid: fafcbfbd41dd7c14ab184b17d76106a8, type: 3}
+  - enviromentSFX: 9
+    enviromentClip: {fileID: 8300000, guid: c4b1e37adfd94ab42867606270514873, type: 3}
+  - enviromentSFX: 10
+    enviromentClip: {fileID: 8300000, guid: d723aa3f7543c6749862e7c8ed193614, type: 3}
+  - enviromentSFX: 17
+    enviromentClip: {fileID: 8300000, guid: c4b1e37adfd94ab42867606270514873, type: 3}
+  - enviromentSFX: 16
+    enviromentClip: {fileID: 8300000, guid: d723aa3f7543c6749862e7c8ed193614, type: 3}
+  - enviromentSFX: 11
+    enviromentClip: {fileID: 8300000, guid: 113d2ff204a994ef8848ff0d54548bc9, type: 3}
+  - enviromentSFX: 18
+    enviromentClip: {fileID: 8300000, guid: f7c73eb9b5b8af24b87031b591566444, type: 3}
+  - enviromentSFX: 19
+    enviromentClip: {fileID: 8300000, guid: b25225c72201cd740b16b95b86d57940, type: 3}
+  - enviromentSFX: 20
+    enviromentClip: {fileID: 8300000, guid: afe5e23d02afb5142bc95bacc1e287c0, type: 3}
+  - enviromentSFX: 21
+    enviromentClip: {fileID: 8300000, guid: 9ea11a2d13d536e4e8441a0f5895995c, type: 3}
+  - enviromentSFX: 22
+    enviromentClip: {fileID: 8300000, guid: 203ac8b6f07070e4f93f1c1a6fff06c3, type: 3}
+  - enviromentSFX: 23
+    enviromentClip: {fileID: 8300000, guid: ac6649006dbee9e4685752e124111da7, type: 3}
+  humanAudioClipArray:
+  - humanSFX: 0
+    humanClip: {fileID: 8300000, guid: 00cf215f71c45834eab7bc1adf007981, type: 3}
+  - humanSFX: 1
+    humanClip: {fileID: 8300000, guid: 99feca2631dd54d4daed7d274467587d, type: 3}
+  - humanSFX: 2
+    humanClip: {fileID: 8300000, guid: 1093e558a8504d8428b0209444c541e0, type: 3}
+  - humanSFX: 3
+    humanClip: {fileID: 8300000, guid: 00d6deb53c2a7924d831fde829edb766, type: 3}
+  - humanSFX: 4
+    humanClip: {fileID: 8300000, guid: 0962cad0a62e5584bab8552f064c8af3, type: 3}
+  - humanSFX: 5
+    humanClip: {fileID: 8300000, guid: 4e8aa36ac8ef8db4cbe1446d35866998, type: 3}
+  - humanSFX: 6
+    humanClip: {fileID: 8300000, guid: e42a377cbfd39d542a8ea6a75767b391, type: 3}
+  - humanSFX: 7
+    humanClip: {fileID: 8300000, guid: bf74ef955ec9e0145a7c5e2559de8a5d, type: 3}
+  - humanSFX: 8
+    humanClip: {fileID: 8300000, guid: a7443d30df8ec2642b93bdb8d08fbd11, type: 3}
+  - humanSFX: 9
+    humanClip: {fileID: 8300000, guid: 226a2915a1ef812438bc800a91e0b702, type: 3}
+  - humanSFX: 10
+    humanClip: {fileID: 8300000, guid: f4b7593771237284c90a4b79f8c67f14, type: 3}
+  - humanSFX: 11
+    humanClip: {fileID: 8300000, guid: 20970d7c149d01b4cb0e71f758512af7, type: 3}
+  - humanSFX: 12
+    humanClip: {fileID: 8300000, guid: cdf6566dbc0db7240aaa14274f540e72, type: 3}
+  ambientAudioClipArray:
+  - ambientSFX: 0
+    ambientClip: {fileID: 8300000, guid: 2339a234e09e9664baa8ba882b7690ea, type: 3}
+  - ambientSFX: 1
+    ambientClip: {fileID: 8300000, guid: ce1ae3d95fd11bd43a4092f6b4bb86fe, type: 3}
+  - ambientSFX: 2
+    ambientClip: {fileID: 8300000, guid: 32409d3c00abece48811ebc96ce2d778, type: 3}
+  - ambientSFX: 3
+    ambientClip: {fileID: 8300000, guid: 6199b69050fbf3b4caa7155092314523, type: 3}
+  - ambientSFX: 4
+    ambientClip: {fileID: 8300000, guid: b4411a042aaea554b8ad110c078b4207, type: 3}
+  - ambientSFX: 5
+    ambientClip: {fileID: 8300000, guid: 810ecb2b87caefc408922b93ca71d1d1, type: 3}
+  - ambientSFX: 6
+    ambientClip: {fileID: 8300000, guid: 521dd5f113658f44089772546deefe8b, type: 3}
+  - ambientSFX: 5
+    ambientClip: {fileID: 8300000, guid: 521dd5f113658f44089772546deefe8b, type: 3}
+  rockerAudioClipArray:
+  - rockerSFX: 0
+    rockerClip: {fileID: 8300000, guid: bf1e67b8b04c7454d936bac52ff37c16, type: 3}
+  - rockerSFX: 1
+    rockerClip: {fileID: 8300000, guid: 5766473afdd296a4da666664c626ea1e, type: 3}
+  - rockerSFX: 2
+    rockerClip: {fileID: 8300000, guid: 51231a854b0e6a94c99dd05acf1295c5, type: 3}
+  - rockerSFX: 3
+    rockerClip: {fileID: 8300000, guid: e6dc14845f2b1c140ad962e929e899de, type: 3}
+  - rockerSFX: 4
+    rockerClip: {fileID: 8300000, guid: 92f4e011137b6a64b9ca9ed15254e33a, type: 3}
+  - rockerSFX: 5
+    rockerClip: {fileID: 8300000, guid: 77a1c7e2b198c574d806564cbcf0760c, type: 3}
+  - rockerSFX: 6
+    rockerClip: {fileID: 8300000, guid: f5fc81880bd02934b88e4852993409d4, type: 3}
+  - rockerSFX: 7
+    rockerClip: {fileID: 8300000, guid: 71ec02b5415f1c14ba2fb639b86bbcae, type: 3}
+  timbertoesAudioClipArray:
+  - timbertoesSFX: 0
+    timbertoesClip: {fileID: 8300000, guid: 0b70a9499863a3d4fb6a894eb57fa674, type: 3}
+  - timbertoesSFX: 1
+    timbertoesClip: {fileID: 8300000, guid: 7a515169ec9009c40a9f0257a60e7708, type: 3}
+  - timbertoesSFX: 2
+    timbertoesClip: {fileID: 8300000, guid: 86a29acf2a6eb70429298c874e4da841, type: 3}
+  - timbertoesSFX: 3
+    timbertoesClip: {fileID: 8300000, guid: 94732da3e205f0e429af66a42f172f08, type: 3}

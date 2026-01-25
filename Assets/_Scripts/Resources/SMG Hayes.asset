@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67ac1fc26386361409ab3b23631f0673, type: 3}
+  m_Name: SMG Hayes
+  m_EditorClassIdentifier: 
+  animatorOverride: {fileID: 0}
+  activeWeapon: {fileID: 65811528693937898, guid: f05243713fe5d204fb327b888c8b6ff7, type: 3}
+  equippedPrefab: {fileID: 8965517654595569865, guid: f05243713fe5d204fb327b888c8b6ff7, type: 3}
+  projectile: {fileID: 5524526560787664376, guid: 19f7482d3b872aa4cab3e9d0849608bf, type: 3}
+  weaponTitle: SMG
+  isGrenadeLauncher: 0
+  isPistol: 1
+  isMedKit: 0
+  isRifle: 0
+  isMelee: 0
+  isEMP: 0
+  itemID: 64adcb68-c1b7-4a43-a91f-840e74fdac7e
+  displayName: SMG
+  description: 
+  icon: {fileID: 21300000, guid: ab9d7ce33e7c1da46b1270fbd582cde4, type: 3}
+  pickup: {fileID: 7979591142669461427, guid: 021937047b8c8e644a6d42cd63ba916a, type: 3}
+  stackable: 1

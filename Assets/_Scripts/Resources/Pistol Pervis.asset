@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67ac1fc26386361409ab3b23631f0673, type: 3}
+  m_Name: Pistol Pervis
+  m_EditorClassIdentifier: 
+  animatorOverride: {fileID: 0}
+  activeWeapon: {fileID: 65811528693937898, guid: f0e4dfc7922bc0942ab8a080c9741790, type: 3}
+  equippedPrefab: {fileID: 8965517654595569865, guid: f0e4dfc7922bc0942ab8a080c9741790, type: 3}
+  projectile: {fileID: 4287304663912672958, guid: e9250910483d79a49afa980d92c69d91, type: 3}
+  weaponTitle: pistol
+  isGrenadeLauncher: 0
+  isPistol: 1
+  isMedKit: 0
+  isRifle: 0
+  isMelee: 0
+  isEMP: 0
+  itemID: 89ff25a2-7cf9-423b-8261-4f00c38e5f1a
+  displayName: pistol
+  description: 
+  icon: {fileID: 21300000, guid: fe1d9f21ea531624e99622a5e152a39a, type: 3}
+  pickup: {fileID: 7979591142669461427, guid: e8db1f07b835cbd45ad13bf5432008b7, type: 3}
+  stackable: 1
