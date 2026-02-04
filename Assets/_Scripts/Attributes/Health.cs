@@ -27,6 +27,7 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
         [SerializeField] PlayerSelector playerSelector;
         [SerializeField] Button activateBtn;
         [SerializeField] Image playerButtonX;
+        [SerializeField] Image deathX;
         [SerializeField] GameObject RigLayer;
         [SerializeField] GameObject headFX;
         [SerializeField] GameObject legFX; 
@@ -54,7 +55,6 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
         PlayerVitals vitals;
         public bool isDead;
         TimbertoesFOV TFOV;
-        Image deathX;
         FieldOfView FOV;        
         Fighter fighter;
         float damage;        
@@ -71,8 +71,6 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
 
         void Start() 
         {
-            playerCore = GameObject.Find("PlayerCore");
-            playerSelector = playerCore.GetComponent<PlayerSelector>();
             wrapper = GetComponent<SavingWrapper>();
             FOV = GetComponent<FieldOfView>();
             combatTarget = GetComponent<CombatTarget>();
@@ -157,7 +155,6 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
         public void Die()
         {
             //disable Button effect
-            
             deathX.enabled = true;
             isDead = true;
             CheckTag(this.gameObject);           
@@ -170,7 +167,7 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
             if (activateBtn != null)
             {
                 activateBtn.enabled = false;
-                playerButtonX.enabled = true;
+                deathX.enabled = true;
             }
 
             anim.SetBool("HitAnim", false);

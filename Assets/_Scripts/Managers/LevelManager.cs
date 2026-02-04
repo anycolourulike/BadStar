@@ -21,16 +21,20 @@ using Rambler.UI;
 public class LevelManager : MonoBehaviour, ISaveable
 {
     public static LevelManager Instance { set; get; }
-    AsyncOperationHandle<SceneInstance> handle;
+    // --- SCENE TRACKING ---
+    // This stores the handle for the scene currently active in the game.
+    // We use this to properly release memory when moving to a new area.
+    AsyncOperationHandle<SceneInstance> activeSceneHandle;
+    
+    [Header("Rambler System References")]
     public PlayerSelector playerSelector;
-    public CameraManager cameraManager;
     public AssetReference sceneToLoad;
-    public GameObject playerCore; 
+    public SceneRefs sceneRefs;
     
     public GameObject dialogueObj;
     public DialogueUI dialogueUI;
-    public Fader fader;
-
+    
+    [Header("State Tracking")]
     public GameObject activePlayer;
     public Health playerHealth;
     public bool lifeWasLost;
@@ -42,6 +46,8 @@ public class LevelManager : MonoBehaviour, ISaveable
     public int sceneRef;
     public int introSubSceneRef = 2; //loads robot lab after first seq
     public Transform spawnPoint;
+    
+    [Header("Addressable Scene Assets")]
     //Menu Scenes
     public AssetReference Loading;
     public AssetReference Menu; 
@@ -50,16 +56,13 @@ public class LevelManager : MonoBehaviour, ISaveable
     public AssetReference f3; //Seq
     public AssetReference f2;
     public AssetReference f1;
-   
     //Surface
     public AssetReference Crash; //Dial Warbots
     public AssetReference Canyons;
     public AssetReference Cliffs;
-
     //Weather Station
     public AssetReference outside;
     public AssetReference inside;
-    
     //Cave
     public AssetReference Tunnels;
     public AssetReference Cavern; //Dial    
@@ -76,7 +79,7 @@ public class LevelManager : MonoBehaviour, ISaveable
         else
         {
             Instance = this;
-            GameObject.DontDestroyOnLoad(gameObject);
+            DontDestroyOnLoad(gameObject);
         }            
     }  
 
@@ -94,9 +97,13 @@ public class LevelManager : MonoBehaviour, ISaveable
     public IEnumerator LoadLoading() 
     {  
        FindAssetPath();
-       fader.FadeToClear(3);      
        yield return new WaitForSeconds(0.3f); //Delay to allow loading of next scenes assets
-       Addressables.LoadSceneAsync(Loading, LoadSceneMode.Single).Completed += OnSceneLoadComplete; 
+       
+       //Use loadedSceneHandle to match your convention and yield it to ensure completion
+       AsyncOperationHandle<SceneInstance> loadedSceneHandle = 
+           Addressables.LoadSceneAsync(Loading, LoadSceneMode.Single);
+       loadedSceneHandle.Completed += OnSceneLoadComplete; 
+       yield return loadedSceneHandle;
     } 
     
     public IEnumerator LoadMenu() 
@@ -133,11 +140,15 @@ public class LevelManager : MonoBehaviour, ISaveable
         System.GC.Collect();
         FindAssetPath();
         AmbientMusic();
-        
+        FindSceneRefs();
         if (sceneToLoad == Loading) return;
         if (sceneToLoad == Intro) return;
         if (sceneToLoad == Menu) return;
-        FindPlayerSelector();
+        if (sceneRef != null)
+        {
+            FindPlayerSelector();
+        }
+        
         StartCoroutine(nameof(LoadSavedFile));
         StartCoroutine(nameof(SetUpLevel));
         if (sceneToLoad == f3)
@@ -152,42 +163,42 @@ public class LevelManager : MonoBehaviour, ISaveable
         DestOutput();
     } 
 
-    void OnSceneLoadComplete(AsyncOperationHandle<SceneInstance>previousScene)
+    void OnSceneLoadComplete(AsyncOperationHandle<SceneInstance>loadedSceneHandle)
     {  
-        if(previousScene.Status == AsyncOperationStatus.Succeeded)
+        //Check if loading of new scene was successful
+        if(loadedSceneHandle.Status == AsyncOperationStatus.Succeeded)
         {
-          handle = previousScene;
-          UnloadScene();
+            //Check if we are currently tracking an older scene
+            if (activeSceneHandle.IsValid())
+            {
+                //Remove the old scene from memory before moving to the new one
+                Addressables.UnloadSceneAsync(activeSceneHandle);
+            }
+          activeSceneHandle = loadedSceneHandle;
         }  
     }
 
-    void UnloadScene()
-    {   
-       Addressables.UnloadSceneAsync(handle, true).Completed += op =>
-       {
-          if(op.Status == AsyncOperationStatus.Succeeded)
-          {
-               
-          }
-       };
-    } 
-
     void FindPlayerSelector()
     {
-        var playerCore = GameObject.Find("PlayerCore");
-        PlayerSelector playerSelector = playerCore.GetComponent<PlayerSelector>();
+        var fader = sceneRefs.fader;
+        var playerCore = sceneRefs.playerCore;
+        var playerSelector = sceneRefs.playerSelector;
         activePlayer = playerSelector.activePlayer;
         if (activePlayer != null)
         {
             playerHealth = activePlayer.GetComponent<Health>();
             enemySpawner.FindPopUp();
+            fader.FadeToClear(2f);
         }
+    }
+
+    void FindSceneRefs()
+    {
+        sceneRefs = FindObjectOfType<SceneRefs>();
     }
     
     IEnumerator SetUpLevel()
     {
-        GameObject camManObj = GameObject.FindGameObjectWithTag("CamMan");
-        cameraManager = camManObj.GetComponent<CameraManager>();
         //Waiting for level enemies to HealthCheck and remove dead AI
         yield return new WaitForSeconds(2.8f);
         if (DestinationCheck() == true)
@@ -208,11 +219,8 @@ public class LevelManager : MonoBehaviour, ISaveable
         }
         else
         {
-            Debug.Log("destCheckFalse");
+            Debug.Log("destinationCheckFalse");
         }
-
-        fader.canvas.sortingOrder = -1;
-        fader.FadeToClear(10f);
 
         dialogueObj = GameObject.Find(name: "/PlayerCore/HUD/Dialogue");
         dialogueUI = dialogueObj.GetComponent<DialogueUI>();
