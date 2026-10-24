@@ -35,9 +35,7 @@ public class GameUI : MonoBehaviour
     {
         ResumeGame();
         wrapper.Save();
-        levelManager.sceneRef = 1; //Loads intro
-        levelManager.introSubSceneRef = 12; // Loads Crash Site
-        levelManager.introNum = 1; //Loads Second Canvas
+        levelManager.sceneRef = 2; //Back to the Crash Site
         levelManager.StartCoroutine(nameof(LoadSavedGame));
     }
 

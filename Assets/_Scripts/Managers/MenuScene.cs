@@ -15,7 +15,7 @@ public class MenuScene : MonoBehaviour
     LevelManager levelManager;
     SavingWrapper wrapper;
     Fader fader;    
-    int sceneRef = 1;
+    int sceneRef = 2; //New game starts at the Crash Site
 
     void Start()
     {

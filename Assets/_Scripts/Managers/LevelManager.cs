@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
-using UnityEditor;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using System;
 using UnityEngine.SceneManagement;
@@ -50,25 +50,11 @@ public class LevelManager : MonoBehaviour, ISaveable
     [Header("Addressable Scene Assets")]
     //Menu Scenes
     public AssetReference Loading;
-    public AssetReference Menu; 
-    public AssetReference Intro;  
-    //Freighter
-    public AssetReference f3; //Seq
-    public AssetReference f2;
-    public AssetReference f1;
-    //Surface
-    public AssetReference Crash; //Dial Warbots
-    public AssetReference Canyons;
-    public AssetReference Cliffs;
-    //Weather Station
-    public AssetReference outside;
-    public AssetReference inside;
-    //Cave
-    public AssetReference Tunnels;
-    public AssetReference Cavern; //Dial    
-    public AssetReference Rocker; //Boss Rocker...to be continued...
-    //Outro
-      
+    public AssetReference Menu;
+    //Levels
+    [FormerlySerializedAs("f3")] public AssetReference crashSite;
+    public AssetReference mine;
+
 
     void Awake()
     {        
@@ -142,7 +128,6 @@ public class LevelManager : MonoBehaviour, ISaveable
         AmbientMusic();
         FindSceneRefs();
         if (sceneToLoad == Loading) return;
-        if (sceneToLoad == Intro) return;
         if (sceneToLoad == Menu) return;
         if (sceneRef != null)
         {
@@ -151,11 +136,11 @@ public class LevelManager : MonoBehaviour, ISaveable
         
         StartCoroutine(nameof(LoadSavedFile));
         StartCoroutine(nameof(SetUpLevel));
-        if (sceneToLoad == f3)
-        {           
+        if (sceneToLoad == crashSite)
+        {
             playerSelector.StartingLives();
         }
-        if(sceneToLoad == Crash)
+        if (sceneToLoad == mine)
         {
             playerSelector.AddOneLife();
         }
@@ -181,8 +166,8 @@ public class LevelManager : MonoBehaviour, ISaveable
     void FindPlayerSelector()
     {
         var fader = sceneRefs.fader;
-        var playerCore = sceneRefs.playerCore;
-        var playerSelector = sceneRefs.playerSelector;
+        //Store on the field; StartingLives/AddOneLife use it after this returns
+        playerSelector = sceneRefs.playerSelector;
         activePlayer = playerSelector.activePlayer;
         if (activePlayer != null)
         {
@@ -223,6 +208,7 @@ public class LevelManager : MonoBehaviour, ISaveable
         }
 
         dialogueObj = GameObject.Find(name: "/PlayerCore/HUD/Dialogue");
+        if (dialogueObj == null) yield break; //Level was left before setup finished
         dialogueUI = dialogueObj.GetComponent<DialogueUI>();
         if (dialogueUI != null)
         {
@@ -230,64 +216,19 @@ public class LevelManager : MonoBehaviour, ISaveable
         }
     }
 
+    //Scene numbers: 0 Menu, 2 Crash Site, 3 Mine.
+    //1 was the Intro; old saves that point at it go to the Crash Site.
     public void FindAssetPath()
     {
        switch (sceneRef)
        {
-         case 0:
-             sceneToLoad = Menu;
-            break;
-
          case 1:
-            sceneToLoad = Intro;
-            break;
-
          case 2:
-            sceneToLoad = f3;
+            sceneToLoad = crashSite;
             break;
 
          case 3:
-            sceneToLoad = f2;
-            break;
-
-         case 4:
-            sceneToLoad = f1;
-            break;
-
-         case 5:
-            sceneToLoad = Crash;
-            break;
-
-         case 6:
-            sceneToLoad = Canyons;
-            break;
-
-         case 7:
-            sceneToLoad = Cliffs;
-            break;
-
-         case 8:
-            sceneToLoad = outside;
-            break;
-
-         case 9:
-            sceneToLoad = inside;
-            break;
-
-         case 10:
-            sceneToLoad = Tunnels;
-            break;
-
-         case 11:
-            sceneToLoad = Cavern;
-            break;
-
-         case 12:
-            sceneToLoad = Crash;
-            break;       
-
-         case 13:
-            sceneToLoad = Rocker;
+            sceneToLoad = mine;
             break;
 
          default:
@@ -304,106 +245,14 @@ public class LevelManager : MonoBehaviour, ISaveable
                 AudioManager.PlayAmbientSound(AudioManager.AmbientSound.ambientMusic);                           
                 break;
 
-            case 1:   
-                
-                break;
-
+            case 1:
             case 2:
                 AudioManager.PlayAmbientSound(AudioManager.AmbientSound.RigBackground);                           
                 break;
 
             case 3:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.RigBackground);                           
-                break;
-
-            case 4:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.RigBackground);
-                break;
-
-            case 5:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.RigBackground);
-                break;
-
-            case 6:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.RigBackground);                           
-                break;
-
-            case 7:
-                 AudioManager.PlayAmbientSound(AudioManager.AmbientSound.RigBackground);                           
-                 break;
-
-            case 8:
-                 AudioManager.PlayAmbientSound(AudioManager.AmbientSound.RigBackground);
-                 break;
-
-            case 9:
-                 AudioManager.PlayAmbientSound(AudioManager.AmbientSound.RigBackground);
-                 break;
-
-            case 10:
-                 AudioManager.PlayAmbientSound(AudioManager.AmbientSound.RigBackground);
-                 break;
-
-            case 11:
-                 AudioManager.PlayAmbientSound(AudioManager.AmbientSound.RigBackground);
-                 break;
-
-            case 12:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.SurfaceBackground);
-                break;
-
-            case 13:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.SurfaceBackground);
-                break;
-
-            case 14:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.SurfaceBackground);
-                break;
-
-            case 15:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.SurfaceBackground);
-                break;
-
-            case 16:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.SurfaceBackground);
-                break;
-
-            case 17:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.SurfaceBackground);
-                break;
-
-            case 18:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.SurfaceBackground);
-                break;
-
-            case 19:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.SurfaceBackground);
-                break;
-
-            case 20:
                 AudioManager.PlayAmbientSound(AudioManager.AmbientSound.CaveBackground);
                 break;
-
-            case 21:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.CaveBackground);
-                break;
-
-            case 22:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.CaveBackground);
-                break;
-
-            case 23:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.CaveBackground);
-                break;
-
-            case 24:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.CaveBackground);
-                break;
-
-            case 25:
-                AudioManager.PlayAmbientSound(AudioManager.AmbientSound.CaveBackground);
-                break;
-
         }        
     }
 
