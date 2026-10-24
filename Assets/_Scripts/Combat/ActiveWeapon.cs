@@ -42,11 +42,7 @@ namespace Rambler.Combat
             {                
                 FullMag();
             }
-            if(weaponType == WeaponType.launcher)
-            {
-                projectile.isGrenade = true;
-            }
-        }          
+        }
 
         void Update() 
         {  
@@ -137,36 +133,39 @@ namespace Rambler.Combat
 
         public void Reload() 
         {    
-            if(curClip == maxClip)  return;                          
-            if(totalAmmo >= 0)
-            { 
-                reloading = true;
+            if(curClip >= magAmount)  return;
+            if(this.gameObject.CompareTag ("NPCWeapon"))
+            {
+                //NPCs have unlimited reserve ammo
                 ReloadAnimCheck();
-                
-                ammoSpent = magAmount - curClip;  
-                                       
-                if (ammoSpent >= totalAmmo)
-                {
-                   ammoSpent = totalAmmo;  //Store Total Ammo for when Weapon is requipped                
-                }
-                else if (ammoSpent <= totalAmmo)
-                {
-                    totalAmmo -= ammoSpent;
-                }
-                FullMag(); 
-                reloading = false; 
-                if(this.gameObject.CompareTag ("NPCWeapon")) return;
-                UpdateTotalAmmoDisplay();                                              
-            }           
-        } 
+                FullMag();
+                return;
+            }
+            if(totalAmmo <= 0) return;
+
+            reloading = true;
+            ReloadAnimCheck();
+
+            //Only move as many rounds as the reserve holds
+            ammoSpent = Mathf.Min(magAmount - curClip, totalAmmo);
+            totalAmmo -= ammoSpent;
+            curClip += ammoSpent;
+            reloadAmmoSFX = false;
+            reloading = false;
+            UpdateTotalAmmoDisplay();
+        }
        
        public void LaunchProjectile(Transform muzzleTransform, Vector3 target)
         {     
-            if((curClip > 0)  && (reloading = true))
-            { 
-                ShootAnim(); 
+            if((curClip > 0)  && !reloading)
+            {
+                ShootAnim();
                 //Check for weapon type and launch grenade
-                Projectile Firedprojectile = Instantiate(projectile, muzzleTransform.position, muzzleTransform.rotation);            
+                Projectile Firedprojectile = Instantiate(projectile, muzzleTransform.position, muzzleTransform.rotation);
+                if(weaponType == WeaponType.launcher)
+                {
+                    Firedprojectile.isGrenade = true;
+                }
                 Firedprojectile.SetTarget(target);
                 GameObject Muzzle = Instantiate(MuzzleFlash, muzzleTransform.position, muzzleTransform.rotation) as GameObject;            
                 Muzzle.transform.parent = muzzleTransform.transform;                                     
@@ -353,8 +352,9 @@ namespace Rambler.Combat
 
         public void RestoreState(object state)
         {
-            magAmount = (int)state;
-            totalAmmo = (int)state;
+            SavingStruct savingStruct = (SavingStruct)state;
+            magAmount = savingStruct.magAmount;
+            totalAmmo = savingStruct.totalAmmo;
         }
     } 
 }

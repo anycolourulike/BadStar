@@ -6,7 +6,11 @@ public class DisableSelectionUI : MonoBehaviour
 {
     
     float timer = 3f;
-  
+
+    void OnEnable()
+    {
+        timer = 3f;
+    }
 
     void Update()
     {

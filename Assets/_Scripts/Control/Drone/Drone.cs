@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using Rambler.Control;
 
@@ -8,30 +6,31 @@ namespace Rambler.Combat
     [CreateAssetMenu(fileName = "Drone", menuName = "drone/new", order = 0)]
     public class Drone : ScriptableObject
     {
-        public GameObject droneObj;
-        public DroneCon droneCon;
-
         public enum DroneType { suicide, ranged, health }
-        public DroneType droneType;       
 
+        public GameObject droneObj;
+        public DroneType droneType;
 
-        void Start()
+        //ScriptableObjects never get Start(), so the type is applied to each spawned drone here
+        public GameObject Spawn(Vector3 position)
         {
-            //droneType = (DroneType)Random.Range(0, System.Enum.GetValues(typeof(DroneType)).Length);
-            droneCon = droneObj.GetComponentInChildren<DroneCon>();
-            switch (droneType)
+            if (droneObj == null)
             {
-                case DroneType.suicide:
-                    droneCon.isSuicide = true;
-                    break;
-                case DroneType.ranged:
-                    droneCon.isRanged = true;
-                    break;
-                case DroneType.health:
-                    droneCon.isHealth = true;
-                    break;
-            }            
+                Debug.LogWarning(name + " has no drone prefab assigned");
+                return null;
+            }
+
+            GameObject instance = Instantiate(droneObj, position, Quaternion.identity);
+
+            DroneCon droneCon = instance.GetComponentInChildren<DroneCon>();
+            if (droneCon != null)
+            {
+                droneCon.isSuicide = droneType == DroneType.suicide;
+                droneCon.isRanged = droneType == DroneType.ranged;
+                droneCon.isHealth = droneType == DroneType.health;
+            }
+
+            return instance;
         }
-      
     }
 }

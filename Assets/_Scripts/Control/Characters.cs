@@ -15,7 +15,7 @@ public class Characters : MonoBehaviour
     {
         if(enemiesList.Contains(enemyToRemove))
         {
-            enemiesList.Contains(enemyToRemove);
+            enemiesList.Remove(enemyToRemove);
         }
         else
         {
@@ -27,7 +27,7 @@ public class Characters : MonoBehaviour
     {
         if (playersList.Contains(playerToRemove))
         {
-            playersList.Contains(playerToRemove);
+            playersList.Remove(playerToRemove);
         }
         else
         {

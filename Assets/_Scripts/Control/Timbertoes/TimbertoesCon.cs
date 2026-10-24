@@ -51,9 +51,8 @@ namespace Rambler.Control
         NavMeshAgent nav;
         TFighter fighter;
         float coolDown;
+        float fovRadius;
         Health health;
-        Drone drone;
-             
 
         void OnEnable()
         {
@@ -76,6 +75,7 @@ namespace Rambler.Control
             health = GetComponent<Health>();
             mover = GetComponent<Mover>();
             FOV = GetComponent<TimbertoesFOV>();
+            fovRadius = FOV.radius;
             animator = GetComponent<Animator>();
             combatTarget = GetComponent<CombatTarget>();
 
@@ -118,7 +118,6 @@ namespace Rambler.Control
         void Update()
         {
             stateMachine.Tick();
-            Debug.Log(this.gameObject.name + " " + stateMachine._currentState);
         }
 
         public void TargetHealthCheck()
@@ -137,8 +136,9 @@ namespace Rambler.Control
 
         public void AttackBehaviour()
         {
-            var targetAlive = closestTarget.GetComponent<Health>().isDead;
-            if (targetAlive == false) { return; }
+            if (closestTarget == null) { return; }
+            var targetIsDead = closestTarget.GetComponent<Health>().isDead;
+            if (targetIsDead == true) { return; }
             fighter.Attack(combatTarget: closestTarget);
         }
 
@@ -190,7 +190,7 @@ namespace Rambler.Control
 
         public void FOVReset()
         {
-            FOV.radius = 10f;
+            FOV.radius = fovRadius;
         }
 
         void PlayerDeath(GameObject player)

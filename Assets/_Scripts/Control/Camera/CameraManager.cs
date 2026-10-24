@@ -38,8 +38,11 @@ public class CameraManager : MonoBehaviour
     {
         if (activeCam == newVC) return;
         activeCam = newVC;
-        var pc = activePlayer.GetComponent<PlayerController>();
-        pc.cineMachine = activeCam;
+        if (activePlayer != null)
+        {
+            var pc = activePlayer.GetComponent<PlayerController>();
+            if (pc != null) pc.cineMachine = activeCam;
+        }
         if(activeCam != null)
         {
             foreach(CinemachineVirtualCamera VC in vCams)

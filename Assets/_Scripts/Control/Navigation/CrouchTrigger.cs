@@ -12,7 +12,7 @@ public class CrouchTrigger : MonoBehaviour
             var aICon = other.GetComponent<AIController>();
 
              //aICon.CanCrouch();
-             aICon.AtCrouchingPoint();               
+             if (aICon != null) aICon.AtCrouchingPoint();
             
         }
     }

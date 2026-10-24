@@ -22,23 +22,26 @@ namespace Rambler.Combat
     void Start()
     {
       Rb = GetComponent<Rigidbody>();
-      transform.parent = null;      
+      transform.parent = null;
+
+      if (isGrenade == true)
+      {
+          //Single throw impulse, then gravity takes over
+          Vector3 throwDirection = transform.forward + transform.up * 5f;
+          Rb.AddForce(throwDirection.normalized * 10f, ForceMode.Impulse);
+          Invoke(nameof(ObjActiveFalse), 3f);
+      }
+      else
+      {
+          Invoke(nameof(ObjActiveFalse), maxLifeTime);
+      }
     }
 
-    void Update() 
+    void Update()
     {
-        if (isGrenade == true)
-        {
-            Vector3 throwDirection = transform.forward + transform.up * 5f;
-            Rb.AddForce(throwDirection.normalized * 10f, ForceMode.Impulse);
-            Invoke("ObjActiveFalse", 3f); ;
-        }
-        else
-        {
-            Rb.AddForce(transform.forward * Time.deltaTime * speed);
-            Invoke("ObjActiveFalse", maxLifeTime);
-        }
-    }  
+        if (isGrenade == true) return;
+        Rb.AddForce(transform.forward * Time.deltaTime * speed);
+    }
 
     public void SetTarget(Vector3 target)
     {

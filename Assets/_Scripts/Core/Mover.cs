@@ -35,6 +35,9 @@ namespace Rambler.Movement
             navMeshAgent = GetComponent<NavMeshAgent>();
             rb = GetComponent<Rigidbody>();
             timerRunning = true;
+
+            //Characters placed in scenes can be saved slightly tilted; keep them upright
+            transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
         }
 
         public void FixedUpdate()
@@ -108,9 +111,26 @@ namespace Rambler.Movement
         public void RotateTowards(Transform target)
         {
             int rotSpeed = 160;
-            var targetToLook = Quaternion.LookRotation(target.transform.position - this.transform.position);
-            this.transform.rotation = Quaternion.Slerp(this.transform.rotation, targetToLook, rotSpeed * Time.deltaTime);            
-        }       
+            Vector3 dir = FlatDirection(target.position);
+            if (dir == Vector3.zero) return;
+            var targetToLook = Quaternion.LookRotation(dir);
+            this.transform.rotation = Quaternion.Slerp(this.transform.rotation, targetToLook, rotSpeed * Time.deltaTime);
+        }
+
+        //Turn to face a point on the horizontal plane only, so height differences never tilt the body
+        public void FaceFlat(Vector3 point)
+        {
+            Vector3 dir = FlatDirection(point);
+            if (dir == Vector3.zero) return;
+            transform.rotation = Quaternion.LookRotation(dir);
+        }
+
+        Vector3 FlatDirection(Vector3 point)
+        {
+            Vector3 dir = point - transform.position;
+            dir.y = 0f;
+            return dir.sqrMagnitude > 0.0001f ? dir : Vector3.zero;
+        }
 
         public void StartMoveAction(Vector3 destination, float speedFraction)
         {

@@ -55,7 +55,7 @@ namespace Rambler.Combat
             this.weaponConfig = item;
             if (!item.IsStackable())
             {
-                number = 0;
+                number = 1;
             }
             this.number = number;                        
         }  

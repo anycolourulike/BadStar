@@ -8,10 +8,21 @@ public class AsyncLoad : MonoBehaviour
     public string prefabAddress; // Address of the prefab if using Addressables
     public GameObject prefab;    // Prefab reference if using direct loading
 
+    AsyncOperationHandle<GameObject> handle;
+
     private void Start()
     {
         // Start loading the prefab asynchronously
         StartCoroutine(LoadPrefabAsync());
+    }
+
+    private void OnDestroy()
+    {
+        // Release the Addressables asset so its memory can be freed
+        if (handle.IsValid())
+        {
+            Addressables.Release(handle);
+        }
     }
 
     private IEnumerator LoadPrefabAsync()
@@ -19,7 +30,7 @@ public class AsyncLoad : MonoBehaviour
         // If using Addressables (recommended for large assets)
         if (!string.IsNullOrEmpty(prefabAddress))
         {
-            AsyncOperationHandle<GameObject> handle = Addressables.LoadAssetAsync<GameObject>(prefabAddress);
+            handle = Addressables.LoadAssetAsync<GameObject>(prefabAddress);
             yield return handle;
 
             if (handle.Status == AsyncOperationStatus.Succeeded)
@@ -33,17 +44,9 @@ public class AsyncLoad : MonoBehaviour
         }
         else if (prefab != null) // If using direct loading
         {
-            ResourceRequest resourceRequest = Resources.LoadAsync<GameObject>(prefab.name);
-            yield return resourceRequest;
-
-            if (resourceRequest.asset != null)
-            {
-                OnPrefabLoaded(resourceRequest.asset as GameObject);
-            }
-            else
-            {
-                Debug.LogError("Failed to load prefab: " + prefab.name);
-            }
+            // The prefab is already referenced, so it loaded with the scene;
+            // reloading it by name from Resources fails unless it lives in a Resources folder
+            OnPrefabLoaded(prefab);
         }
         else
         {

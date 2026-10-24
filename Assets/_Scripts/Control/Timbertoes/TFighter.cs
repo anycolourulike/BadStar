@@ -94,18 +94,18 @@ namespace Rambler.Combat
             if (enemyPos.CompareTag("AIConversant")) return;
             if (!GetIsInRange())
             {
-                GetComponent<Mover>().MoveTo(enemyPos.transform.position, 1f);
+                mover.MoveTo(enemyPos.transform.position, 1f);
             }
             else
             {
-                GetComponent<Mover>().CancelNav();
+                mover.CancelNav();
                 AttackBehaviour();
             }
         }
 
         void AttackBehaviour()
         {
-            transform.LookAt(enemyPos.transform);
+            mover.FaceFlat(enemyPos.transform.position);
             AssignIKTarget();
 
             if (timeSinceLastAttack > timeBetweenAttacks)
@@ -115,6 +115,7 @@ namespace Rambler.Combat
                     if (weaponConfig.isEMP == true)
                     {
                         anim.SetTrigger("EMPAttack");
+                        timeSinceLastAttack = 0f;
                     }
                     else
                     {
@@ -171,9 +172,7 @@ namespace Rambler.Combat
         //called from anim event
         public void LaunchDrone()
         {
-            Debug.Log("LaunchDroneCalled");
-            var droneObj = drone.droneObj;
-            Instantiate(droneObj, handTransform.position, Quaternion.identity);
+            if (drone != null) drone.Spawn(handTransform.position);
             AudioManager.PlayTimbertoesSound(AudioManager.TimbertoesSound.droneLaunch, this.transform.position);
             aiCon.IsPatrolling();
         }
@@ -359,7 +358,7 @@ namespace Rambler.Combat
 
         void EMPAttack()
         {
-            if (HasProjectile() != true)
+            if (HasProjectile())
             {
                 activeWeapon.LaunchProjectile(handTransform, GetEnemyLocation());
             }

@@ -86,14 +86,21 @@ namespace Rambler.Control
 
         private void Start()
         {
+            FindPlayerSelector();
+            if (playerSelector != null) activePlayer = playerSelector.activePlayer;
+        }
+
+        //Awake/OnEnable run before Start, so look this up as early as possible
+        void FindPlayerSelector()
+        {
+            if (playerSelector != null) return;
             GameObject playerCore = GameObject.Find("/PlayerCore");
-            playerSelector = playerCore.GetComponent<PlayerSelector>();
-            activePlayer = playerSelector.activePlayer;
-            FOV = GetComponent<FieldOfView>();
+            if (playerCore != null) playerSelector = playerCore.GetComponent<PlayerSelector>();
         }
 
         void Awake()
         {
+            FindPlayerSelector();
             if (this.transform.name == "Rocker")
             {
                 isRocker = true;
@@ -101,7 +108,7 @@ namespace Rambler.Control
                 boulderGennie = GetComponent<BoulderGennie>();
                 animator = GetComponent<Animator>();
             }
-            if (this.gameObject.tag == "Player")
+            if (this.gameObject.tag == "Player" && playerSelector != null)
             {
                 activePlayer = playerSelector.activePlayer;
             }
@@ -116,7 +123,10 @@ namespace Rambler.Control
             FOV = GetComponent<FieldOfView>();
             combatTarget = GetComponent<CombatTarget>();
             AssignTargetList();
-            if (patrolPath != null) { nextPosition = patrolPath.GetWaypoint(1); }
+            if (patrolPath != null && patrolPath.transform.childCount > 0)
+            {
+                nextPosition = patrolPath.GetWaypoint(patrolPath.GetNextIndex(0));
+            }
             coolDown = 2.5f;
             TimerForNextAttack = coolDown;
 
@@ -126,7 +136,7 @@ namespace Rambler.Control
             followPlayer = new FollowPlayer(this, mover);
             idle = new Idle(this, fighter);
             causeCaveIn = new ICauseCaveIn(this, mover, animator, boulderGennie);
-            var sitting = new ISitting(this, animator);
+            sitting = new ISitting(this, animator);
             var collectRocks = new IFindRocks(this, boulderGennie, mover);
             var hasTarget = new IThrowRock(this, boulderGennie);
             var dead = new Dead(this, combatTarget, mover, fighter);
@@ -158,7 +168,7 @@ namespace Rambler.Control
             Func<bool> HasPath() => () => isPatrolling == true && isDead == false; 
             Func<bool> follow() => () => isFollowingPlayer == true && isDead == false; 
             Func<bool> enemyIdle() => () => this.gameObject.CompareTag("Enemy") && isDead == false &&
-                                            FOV.canSeePlayer == false && isIdle == true; 
+                                            (FOV == null || FOV.canSeePlayer == false) && isIdle == true;
             Func<bool> CompanionIdle() => () => this.gameObject.CompareTag("Companion") && isDead == false &&
                                              isIdle == true; 
 
@@ -173,7 +183,7 @@ namespace Rambler.Control
         void OnEnable()
         {
             PlayerSelector.OnPlayerObjectChanged += UpdatePlayer;
-            FOV.enabled = true;
+            if (FOV != null) FOV.enabled = true;
             //Initial State
             if (this.gameObject.CompareTag("Enemy"))
             {
@@ -186,7 +196,7 @@ namespace Rambler.Control
             if ((this.transform.name == "Rocker") && this.gameObject.CompareTag("Enemy"))
             {
                 stateMachine.SetState(sitting);
-                closestTarget = playerSelector.activePlayer;
+                if (playerSelector != null) closestTarget = playerSelector.activePlayer;
             }           
             
         }
@@ -194,16 +204,15 @@ namespace Rambler.Control
         void OnDisable()
         {
             PlayerSelector.OnPlayerObjectChanged -= UpdatePlayer;
-            FOV.enabled = false;
+            if (FOV != null) FOV.enabled = false;
         }
 
         void Update()
         {
             stateMachine.Tick();
-            Debug.Log(this.gameObject.name + " " + stateMachine._currentState);
             if (this.gameObject.CompareTag("Player"))
             {
-                if (FOV.canSeePlayer == false)
+                if (FOV != null && FOV.canSeePlayer == false)
                 {
                     fighter.TargetCap = null;
                     UpdateTarget();
@@ -233,8 +242,9 @@ namespace Rambler.Control
 
         public void AttackBehaviour()
         {
-            var targetAlive = closestTarget.GetComponent<Health>().isDead;
-            if (targetAlive == false) { return; }
+            if (closestTarget == null) { return; }
+            var targetIsDead = closestTarget.GetComponent<Health>().isDead;
+            if (targetIsDead == true) { return; }
             fighter.Attack(combatTarget: closestTarget);
         }
 
@@ -291,7 +301,11 @@ namespace Rambler.Control
         public void CaveInTrue() { caveIn = true; }
         public void CaveInFalse() { caveIn = false; }
 
-        public void ReadyToThrow() { readyToThrow = true; mover.RotateTowards(closestTarget.transform); }
+        public void ReadyToThrow()
+        {
+            readyToThrow = true;
+            if (closestTarget != null) mover.RotateTowards(closestTarget.transform);
+        }
         public void NotReadyToThrow() { readyToThrow = false; }
 
         public void RockInHand() { hasRock = true; }
@@ -317,7 +331,8 @@ namespace Rambler.Control
 
         public void FacePlayer()
         {
-            activePlayer = playerSelector.activePlayer;
+            if (playerSelector != null) activePlayer = playerSelector.activePlayer;
+            if (activePlayer == null) return;
             mover.RotateTowards(activePlayer.transform);
         }
 

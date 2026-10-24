@@ -120,7 +120,7 @@ namespace Rambler.Attributes // To Do Stop Movement
         public void RestoreHealth()
         {
             healthPoints = new LazyValue<float>(GetInitialHealth);
-            vitals.Restore();
+            if (vitals != null) vitals.Restore();
         }
 
         public void Die()
@@ -248,6 +248,7 @@ namespace Rambler.Attributes // To Do Stop Movement
         void OnParticleCollision(GameObject particleProj)
         {
             var proj = particleProj.GetComponent<Projectile>();
+            if (proj == null) return;
             damage = proj.GetDamage();
             TakeDamage(damage);
 

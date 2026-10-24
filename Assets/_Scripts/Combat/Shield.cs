@@ -22,6 +22,7 @@ namespace Rambler.Combat
     void OnParticleCollision(GameObject particleProj) 
     {
       var proj = particleProj.GetComponent<Projectile>();
+      if (proj == null) return;
       var part = proj.GetComponent<ParticleSystem>();
       int numCollisionEvents = part.GetCollisionEvents(this.gameObject, collisionEvents);
 

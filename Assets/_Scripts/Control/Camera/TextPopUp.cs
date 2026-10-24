@@ -13,11 +13,12 @@ public class TextPopUp : MonoBehaviour
     public string message = "";
     public bool isEnabled;
     float timer;
-    
+    Vector3 textStartLocalPos;
 
     void Start()
-    {  
+    {
         timer = 0f;
+        textStartLocalPos = textObj.transform.localPosition;
     }
 
     void Update()
@@ -25,14 +26,12 @@ public class TextPopUp : MonoBehaviour
         if (isEnabled == true)
         {
             timer += Time.deltaTime;
-            textPopUP.enabled = true;            
             textPopUP.transform.LookAt(mainCamera.transform);
-            LeanTween.move(textObj, textPopUP.transform.position 
-                + new Vector3(5f, 0f, 1f), 2f).setEase(LeanTweenType.easeInQuad);
 
-            if (timer >= displayDuration)
-            {                
-                Invoke(nameof(ResetTimer), 2f);
+            //Text stays up for displayDuration, then 2s more before hiding
+            if (timer >= displayDuration + 2f)
+            {
+                ResetTimer();
             }
         }
     }
@@ -49,6 +48,13 @@ public class TextPopUp : MonoBehaviour
         textPopUP.text = message;
         textPopUP.enabled = true;
         isEnabled = true;
+        timer = 0f;
+
+        //Start the drift once from the original position
+        LeanTween.cancel(textObj);
+        textObj.transform.localPosition = textStartLocalPos;
+        LeanTween.move(textObj, textObj.transform.position
+            + new Vector3(5f, 0f, 1f), 2f).setEase(LeanTweenType.easeInQuad);
     }
 
 }

@@ -74,7 +74,7 @@ namespace Rambler.Control
 
         void OnEnable()
         {
-            UIBorder.color = Color.red;
+            if (UIBorder != null) UIBorder.color = Color.red;
             Health.playerDeath += PlayerDied;
             lineRenderer = GetComponent<LineRenderer>();
             lineRenderer.positionCount = 0;
@@ -84,9 +84,10 @@ namespace Rambler.Control
 
         void OnDisable()
         {
-            UIBorder.color = Color.white;
+            //Unsubscribe first; during scene unload the UI may already be destroyed
             Health.playerDeath -= PlayerDied;
-            lineRenderer.enabled = false;
+            if (UIBorder != null) UIBorder.color = Color.white;
+            if (lineRenderer != null) lineRenderer.enabled = false;
         } 
        
         void Start()
@@ -132,15 +133,6 @@ namespace Rambler.Control
             {              
                 ShieldsDown();
                 vitals.SetEnergyBurnRate = 0.1f; 
-            }
-
-            if (isCrouching)
-            {
-                Crouch();
-            }
-            else 
-            {
-                StandUp();                
             }
 
             if (InteractWithCombat() || InteractWithMovement()) return;
@@ -216,7 +208,8 @@ namespace Rambler.Control
         bool InteractWithMovement()
         {          
            if(isDead == true) return false;
-           fighter.CancelTarget(); 
+           fighter.CancelTarget();
+           if (Input.touchCount == 0) return false; //No finger down, nothing to raycast
            bool hasHit = RaycastNavMesh(out target);
            
             if (Input.touchCount > 0 && (EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId)))
@@ -242,11 +235,12 @@ namespace Rambler.Control
 
                 if (Input.touchCount == 1 && Input.GetTouch(0).phase == TouchPhase.Began)
                 {
+                    holdDuration = 1f; //New touch, restart the hold-to-move timer
                     float timeSinceLastTap = Time.time - lastTapTime;
                     if (timeSinceLastTap < doubleTapTimeThreshold)
                     {
                         mover.StartMoveAction(target, 50f);
-                        transform.LookAt(target);
+                        mover.FaceFlat(target);
                         anim.SetTrigger("Roll");
                     }
                     lastTapTime = Time.time;
@@ -263,7 +257,7 @@ namespace Rambler.Control
 
         static Ray GetRay()
         {
-            return Camera.main.ScreenPointToRay(Input.mousePosition);
+            return Camera.main.ScreenPointToRay(Input.GetTouch(0).position);
         }
 
         bool RaycastNavMesh(out Vector3 target)
@@ -332,7 +326,6 @@ namespace Rambler.Control
         {            
             activePlayer = playerSelector.activePlayer;            
             if (this.gameObject != activePlayer) return;
-            GC.Collect(); 
             if (other.gameObject.CompareTag("weaponPU"))
             { 
                weaponPU = other.gameObject;
@@ -366,9 +359,8 @@ namespace Rambler.Control
         }
 
         public void InteractPressed()
-        {   
-           GC.Collect();         
-           agent.enabled = false; 
+        {
+           agent.enabled = false;
            mover.enabled = false;
            Interact();
            interact.SetActive(false);
@@ -450,6 +442,15 @@ namespace Rambler.Control
         public void ToggleCrouch()
         {
             isCrouching = !isCrouching;
+            //Fire the trigger once per toggle, not every frame
+            if (isCrouching)
+            {
+                Crouch();
+            }
+            else
+            {
+                StandUp();
+            }
         }
 
         public void Crouch()

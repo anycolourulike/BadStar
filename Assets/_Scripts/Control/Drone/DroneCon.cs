@@ -86,7 +86,6 @@ namespace Rambler.Control
         void Update()
         {
             stateMachine.Tick();
-            Debug.Log(this.gameObject.name + " " + stateMachine._currentState);
 
             if(FOV.canSeePlayer == true)
             {
@@ -125,7 +124,7 @@ namespace Rambler.Control
                 deathFX.transform.position = other.transform.position + new Vector3(0, 1.3f, 0);
                 Destroy(gameObject);
                 var health = other.GetComponent<Health>();
-                health.TakeDamage(targetDamage);
+                if (health != null) health.TakeDamage(targetDamage);
             }
         }
 

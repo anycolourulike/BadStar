@@ -21,7 +21,8 @@ namespace Rambler.Combat
        }  
 
        void Update() 
-       {              
+       {
+            if (Time.deltaTime <= 0f) return; //Paused, avoid divide by zero
             curTargetPos = transform.position;
             Vector3 posDif = curTargetPos - prevTargetPos;
             targetVelocity = posDif/Time.deltaTime; 

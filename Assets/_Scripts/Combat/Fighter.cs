@@ -101,11 +101,11 @@ namespace Rambler.Combat
             if (enemyPos.CompareTag("AIConversant")) return;
             if (!GetIsInRange())
             {
-                GetComponent<Mover>().MoveTo(enemyPos.transform.position, 1f);
+                mover.MoveTo(enemyPos.transform.position, 1f);
             }
             else if(!this.gameObject.CompareTag("Player"))
             {
-                GetComponent<Mover>().CancelNav();  //Trait Run & Gun Enemy Stands Still
+                mover.CancelNav();  //Trait Run & Gun Enemy Stands Still
                 AttackBehaviour();
             }
             else
@@ -116,7 +116,6 @@ namespace Rambler.Combat
 
         void AttackBehaviour()
         {
-            System.GC.Collect();
             if (!this.gameObject.CompareTag("Player"))
             {                
                 if (activeWeapon.curClip <= 0)
@@ -128,7 +127,7 @@ namespace Rambler.Combat
                 if (FOV.canSeePlayer == false) return;
             }
 
-            transform.LookAt(enemyPos.transform);
+            mover.FaceFlat(enemyPos.transform.position);
             AssignIKTarget();
             if (this.gameObject.CompareTag("Player") && enemyPos.gameObject.CompareTag("Companion")) return;
             if (this.gameObject.CompareTag("Companion") && enemyPos.gameObject.CompareTag("Player")) return;
@@ -140,6 +139,7 @@ namespace Rambler.Combat
                     if (weaponConfig.isEMP == true)
                     {
                         anim.SetTrigger("EMPAttack");
+                        timeSinceLastAttack = 0f;
                     }
                     else
                     {
@@ -231,7 +231,7 @@ namespace Rambler.Combat
         public void EquipPickedUpWeapon()
         {
             weaponConfig = weaponPickedUp;
-            if (weaponConfig == weaponConfig.isMedKit) return;
+            if (weaponConfig.isMedKit) return;
             EquipWeapon(weaponConfig);
         }
 
@@ -404,7 +404,7 @@ namespace Rambler.Combat
 
         void EMPAttack()
         {
-            if (HasProjectile() != true)
+            if (HasProjectile())
             {
                 activeWeapon.LaunchProjectile(handTransform, GetEnemyLocation());
             }

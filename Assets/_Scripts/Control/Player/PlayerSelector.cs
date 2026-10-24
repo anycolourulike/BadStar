@@ -165,11 +165,7 @@ namespace Rambler.Control
 
         void PlayerDeath(GameObject player)
         {
-            foreach (GameObject obj in players)
-            {
-                if (obj == player)
-                    players.Remove(obj);
-            }
+            players.Remove(player);
             if(players.Count == 0)
             {
                 //Lose a life

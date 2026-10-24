@@ -29,11 +29,11 @@ public class ActivateFirstWave : MonoBehaviour
         {           
            foreach (GameObject obj in enemyObj)
            {
-              obj.SetActive(true);                    
-           }           
+              obj.SetActive(true);
+           }
+           textPopUp = player.GetComponent<TextPopUp>();
+           textPopUp.EnablePopUp(textToPopUp);
         }
-        textPopUp = player.GetComponent<TextPopUp>();
-        textPopUp.EnablePopUp(textToPopUp);
     }
 
     public void UpdatePlayer(GameObject newPlayer)
