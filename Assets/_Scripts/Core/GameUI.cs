@@ -8,17 +8,13 @@ using UnityEngine.EventSystems;
 
 public class GameUI : MonoBehaviour
 {
-    Interstitial interstitial;
     LevelManager levelManager;
-    RewardedAds rewardedAds;
     SavingWrapper wrapper;
 
     void Start()
     {
         wrapper = FindObjectOfType<SavingWrapper>();
         levelManager = FindObjectOfType<LevelManager>();
-        interstitial = FindObjectOfType<Interstitial>();
-        rewardedAds = FindObjectOfType<RewardedAds>();
     }
 
     public void PauseGame()
@@ -39,19 +35,7 @@ public class GameUI : MonoBehaviour
         levelManager.StartCoroutine(nameof(LoadSavedGame));
     }
 
-    //public void WatchAD()
-    //{
-    //    Debug.Log("WatchAd Called");
-    //    rewardedAds.showRewarded();
-    //}
-
-    public void NoADS()
-    {
-        //InfiniteLives
-        //Noads
-        Debug.Log("noadscaled");
-    }
-    public void LoadSavedGame() 
+    public void LoadSavedGame()
     {
         ResumeGame();
         levelManager.StartCoroutine(nameof(LoadSavedGame));   
