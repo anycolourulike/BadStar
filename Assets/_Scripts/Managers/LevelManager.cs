@@ -268,11 +268,6 @@ public class LevelManager : MonoBehaviour, ISaveable
         return foundPortals;
     }
 
-    public void PlusThreeLives()
-    {
-        playerSelector.AdWatched();
-    }
-
     bool DestinationCheck()
     {
         List<GameObject> portals = FindPortals();

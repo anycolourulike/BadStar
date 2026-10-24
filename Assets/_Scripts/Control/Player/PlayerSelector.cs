@@ -157,12 +157,6 @@ namespace Rambler.Control
             lives++;
         }
 
-        public void AdWatched()
-        {
-            lives += 3;
-            displayLives.text = lives.ToString();
-        }
-
         void PlayerDeath(GameObject player)
         {
             players.Remove(player);
