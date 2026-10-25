@@ -119,11 +119,6 @@ namespace Rambler.Control
             activePlayerCon.InteractPressed();
         }
 
-        public void HolsterWeapon()
-        {
-            activePlayerCon.HolsterWeapon();
-        }
-
         public void ReloadActiveWeapon()
         {
             activePlayerCon.ReloadActiveWeapon();

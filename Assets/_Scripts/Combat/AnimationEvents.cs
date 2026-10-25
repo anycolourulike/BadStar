@@ -17,14 +17,9 @@ namespace Rambler.Combat
         public Transform playerHand;
         public Transform head;
 
-        public void EquipUnarmed() 
+        //Holstering was removed; the holster and shotgun clips still fire this event, so keep a receiver
+        public void EquipUnarmed()
         {
-            if(playerController.isHolstered == true)
-            {                
-              fighter.EquipUnarmed();              
-              playerController.isHolstered = false;
-            }  
-            return;          
         }
 
         public void EndPickup() 

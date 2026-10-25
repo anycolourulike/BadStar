@@ -47,7 +47,6 @@ namespace Rambler.Control
         float lastTapTime;
 
         Transform targetStartPos;
-        public bool isHolstered; 
         Vector3 pickUpDirection;
            
         GameObject weaponPU; 
@@ -94,7 +93,7 @@ namespace Rambler.Control
         { 
            if (interact != null)
            {
-               interact.SetActive(false);
+               ShowInteract(false);
            }
            
            targetStartPos = interactTarget;
@@ -326,36 +325,36 @@ namespace Rambler.Control
         {            
             activePlayer = playerSelector.activePlayer;            
             if (this.gameObject != activePlayer) return;
-            if (other.gameObject.CompareTag("weaponPU"))
-            { 
-               weaponPU = other.gameObject;
-               pickUp = weaponPU.GetComponent<WeaponPickUp>();                                               
-               interact.SetActive(true);
-               interactions = 1;                            
-            }
+            //Weapon pick ups ("weaponPU") show their own world space prompt; see WeaponPickUp
 
             if (other.gameObject.CompareTag("headPickUP"))
             {
                interactions = 2;
                weaponPU = other.gameObject;
                pickUp = weaponPU.GetComponent<WeaponPickUp>();
-               interact.SetActive(true);
+               ShowInteract(true);
             }
 
             if (other.gameObject.CompareTag("UsePC"))
             {
                 interactions = 3;
                 weaponPU = other.gameObject;                                                              
-                interact.SetActive(true);
+                ShowInteract(true);
             }
 
             if (other.gameObject.CompareTag("medKitPU"))
             {
                 weaponPU = other.gameObject;
                 pickUp = weaponPU.GetComponent<WeaponPickUp>();
-                interact.SetActive(true);
+                ShowInteract(true);
                 interactions = 4;
             }
+        }
+
+        void ShowInteract(bool show)
+        {
+            //The HUD interact button was removed; scenes may no longer assign it
+            if (interact != null) interact.SetActive(show);
         }
 
         public void InteractPressed()
@@ -363,7 +362,7 @@ namespace Rambler.Control
            agent.enabled = false;
            mover.enabled = false;
            Interact();
-           interact.SetActive(false);
+           ShowInteract(false);
            pickUp = null;
         }
 
@@ -371,12 +370,6 @@ namespace Rambler.Control
         {
             switch(interactions)
             {
-                case 1:                
-                      fighter.EquipUnarmed();  
-                      anim.SetTrigger("pickUp");
-                      pickUp.PickUpItem();
-                      break;
-
                 case 2:
                      fighter.SetLastWeapon = fighter.weaponConfig; 
                      fighter.EquipUnarmed();  
@@ -414,28 +407,22 @@ namespace Rambler.Control
         void OnTriggerExit(Collider other)
         {
             if (this.gameObject != activePlayer) return;
-            if (other.gameObject.CompareTag("weaponPU"))
-            { 
-                pickUp = null;
-                interact.SetActive(false);      
-            }
-
             if (other.gameObject.CompareTag("medKitPU"))
             {
                 pickUp = null;
-                interact.SetActive(false);
+                ShowInteract(false);
             }
 
             if (other.gameObject.CompareTag("headPickUP"))
             { 
                 pickUp = null;
-                interact.SetActive(false);      
+                ShowInteract(false);      
             }
 
             if(other.gameObject.CompareTag("UsePC"))
             { 
                 pickUp = null;
-                interact.SetActive(false);      
+                ShowInteract(false);      
             }
         }
 
@@ -474,23 +461,6 @@ namespace Rambler.Control
         {
             agent.enabled = true;
             mover.enabled = true;
-        }
-
-        public void HolsterWeapon()
-        { 
-            if(isHolstered == true)
-            {
-                return;
-            }
-            else 
-            {  
-               ammoCounter.SetActive(false);                                    
-               isHolstered = true;
-               weaponIK.AimTransform = null;          
-               rigController.SetTrigger("holster_weapon"); 
-               var fighter = GetComponent<Fighter>();
-               fighter.RigWeightToZero();  
-            }                                                
         }
 
         public void ActivateAmmoCounter()
