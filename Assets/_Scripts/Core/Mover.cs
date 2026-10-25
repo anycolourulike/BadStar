@@ -148,7 +148,7 @@ namespace Rambler.Movement
         public void CancelNav()
         {            
             navMeshAgent.isStopped = true;
-            rb.velocity = Vector3.zero;
+            if (!rb.isKinematic) rb.velocity = Vector3.zero; //Kinematic bodies have no velocity to clear
         }
                
         private void UpdateAnimator()

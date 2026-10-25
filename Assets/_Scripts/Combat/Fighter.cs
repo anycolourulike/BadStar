@@ -83,7 +83,7 @@ namespace Rambler.Combat
                 if(weaponConfig != unarmed)
                 {
                     EquipWeapon(weaponConfig);
-                    inv.AddToFirstEmptySlot(weaponConfig, 1);
+                    if (inv != null) inv.AddToFirstEmptySlot(weaponConfig, 1); //Only players carry an Inventory
                 }
                 else
                 {
@@ -222,10 +222,14 @@ namespace Rambler.Combat
 
         public void EquipUnarmed()
         {
-            playerController.DeactivateAmmoCounter();
-            activeWeapon.AmmoUIInit();
-            RigWeightToZero();
+            //Equip first: this spawns the empty-handed weapon and sets activeWeapon
             EquipWeapon(weapon: unarmed);
+            RigWeightToZero();
+            if (playerController != null) //AI fighters have no ammo HUD
+            {
+                playerController.DeactivateAmmoCounter();
+                activeWeapon.AmmoUIInit();
+            }
         }
 
         public void EquipPickedUpWeapon()

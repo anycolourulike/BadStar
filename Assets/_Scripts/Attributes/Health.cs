@@ -133,7 +133,7 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
                     dronCon.DroneDeath();
                     return;
                 }
-                enemySpawner.RemoveEnemy(gameObject);
+                if (enemySpawner != null) enemySpawner.RemoveEnemy(gameObject); //Not every level has a spawner
                 healthPoints.value = 0f;
                 if (isDeadTimer <= 1f)
                 { 
@@ -154,20 +154,20 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
  
         public void Die()
         {
-            //disable Button effect
-            deathX.enabled = true;
+            //disable Button effect; deathX and the death FX are only set up on some characters
+            if (deathX != null) deathX.enabled = true;
             isDead = true;
             CheckTag(this.gameObject);           
 
             var rigBuilder = GetComponent<RigBuilder>();
-            rigBuilder.enabled = false;
+            if (rigBuilder != null) rigBuilder.enabled = false;
             var capCol = GetComponent<CapsuleCollider>();
             capCol.enabled = false;
             fighter.enabled = false;
             if (activateBtn != null)
             {
                 activateBtn.enabled = false;
-                deathX.enabled = true;
+                if (deathX != null) deathX.enabled = true;
             }
 
             anim.SetBool("HitAnim", false);
@@ -178,8 +178,11 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
             {
                 anim.speed = 2.5f;
                 anim.SetTrigger("Die1");
-                armFX.transform.SetParent(null);
-                armFX.SetActive(true);
+                if (armFX != null)
+                {
+                    armFX.transform.SetParent(null);
+                    armFX.SetActive(true);
+                }
                 if(this.CompareTag("Enemy"))
                 {                  
                   AudioManager.PlayHumanSound(AudioManager.HumanSound.Death1, this.transform.position);
@@ -192,7 +195,7 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
             {
                 anim.speed = 2.5f;
                 anim.SetTrigger("Die2");
-                headFX.SetActive(true);
+                if (headFX != null) headFX.SetActive(true);
                 if(this.CompareTag("Enemy"))
                 {                  
                   AudioManager.PlayHumanSound(AudioManager.HumanSound.Death2, this.transform.position); 
@@ -205,7 +208,7 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
             {
                 anim.speed = 2.5f;
                 anim.SetTrigger("Die3");
-                legFX.SetActive(true); 
+                if (legFX != null) legFX.SetActive(true);
                 if(this.CompareTag("Enemy"))
                 {
                   AudioManager.PlayHumanSound(AudioManager.HumanSound.Death3, this.transform.position); 
@@ -226,8 +229,7 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
                     var aiCon = GetComponent<AIController>();
                     aiCon.isDead = true;
                     Transform selectionUI = transform.Find("SelectionIcon");
-                    var selObj = selectionUI.gameObject;
-                    selObj.SetActive(false);
+                    if (selectionUI != null) selectionUI.gameObject.SetActive(false);
                     break;
                 case "Companion":
                     //Debug.Log("Object is a Companion.");
