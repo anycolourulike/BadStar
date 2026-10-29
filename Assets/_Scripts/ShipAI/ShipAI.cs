@@ -6,8 +6,9 @@ using UnityEngine;
 namespace Rambler.Ship
 {
     //The ship's brain, one per level. Sensors feed it a detection level; as that rises it moves
-    //Dormant > Suspicious > Alert > Lockdown and responds: trapping the player's room, slamming
-    //doors on them, and sealing the whole ship. Hacking terminals (later phase) hands it to the player.
+    //Dormant > Suspicious > Alert > Lockdown and responds: trapping the player's room, venting or
+    //freezing it when a human is inside, slamming doors on them, and sealing the whole ship.
+    //Hacking terminals (later phase) hands it to the player.
     public class ShipAI : MonoBehaviour
     {
         public static ShipAI Instance { get; private set; }
@@ -35,6 +36,13 @@ namespace Rambler.Ship
         [SerializeField] bool crushDoors = true;
         [SerializeField] float crushCooldown = 8f;
 
+        [Header("Life Support")]
+        [Tooltip("Seal and vent or freeze a room holding a human player character. Alternates vent and freeze.")]
+        [SerializeField] bool attackLifeSupport = true;
+        [SerializeField] float lifeSupportCooldown = 30f;
+        [Tooltip("How long the room stays sealed and vented/frozen before the ship lets the air back.")]
+        [SerializeField] float lifeSupportDuration = 20f;
+
         ShipFaction controller = ShipFaction.Hostile;
         AlertState alert = AlertState.Dormant;
         float detection;
@@ -43,7 +51,10 @@ namespace Rambler.Ship
         float decisionTimer;
         float trapReadyAt;
         float crushReadyAt;
+        float lifeSupportReadyAt;
+        bool freezeNext;
         readonly HashSet<ShipDoor> sealedByShip = new();
+        readonly HashSet<ShipRoom> airChangedByShip = new();
 
         public ShipFaction Controller => controller;
         public AlertState Alert => alert;
@@ -124,18 +135,44 @@ namespace Rambler.Ship
             Debug.Log("[ShipAI] " + alert + " (detection " + detection.ToString("F0") + ")");
 
             if (alert == AlertState.Lockdown) SealEveryDoor();
-            if (alert <= AlertState.Suspicious) ReleaseSeals();
+            if (alert <= AlertState.Suspicious)
+            {
+                ReleaseSeals();
+                RestoreAllAir();
+            }
             AlertChanged?.Invoke(alert);
         }
 
         void Decide()
         {
-            if (alert < AlertState.Alert) return;
-            if (trapPlayerRoom && Time.time >= trapReadyAt && LastKnownRoom != null && LastKnownRoom.HasPlayerSide())
+            if (alert < AlertState.Alert || LastKnownRoom == null) return;
+
+            //Humans can be killed with the air itself; robots only get trapped
+            if (attackLifeSupport && Time.time >= lifeSupportReadyAt && LastKnownRoom.HasBreather(playerSide: true))
+            {
+                StartCoroutine(AttackLifeSupport(LastKnownRoom, freezeNext));
+                freezeNext = !freezeNext;
+                lifeSupportReadyAt = Time.time + lifeSupportCooldown;
+                trapReadyAt = Time.time + trapCooldown; //The room is sealed for this already
+                return;
+            }
+
+            if (trapPlayerRoom && Time.time >= trapReadyAt && LastKnownRoom.HasPlayerSide())
             {
                 SealRoom(LastKnownRoom, trapDuration);
                 trapReadyAt = Time.time + trapCooldown;
             }
+        }
+
+        IEnumerator AttackLifeSupport(ShipRoom room, bool freeze)
+        {
+            SealRoom(room, 0f);
+            if (freeze) FreezeRoom(room);
+            else VentRoom(room);
+            yield return new WaitForSeconds(lifeSupportDuration);
+            if (alert == AlertState.Lockdown || room == null) yield break;
+            RestoreRoom(room);
+            UnsealRoom(room);
         }
 
         void OnDoorwayEntered(ShipDoor door, GameObject character)
@@ -198,6 +235,35 @@ namespace Rambler.Ship
             }
         }
 
+        public void VentRoom(ShipRoom room)
+        {
+            room.VentOxygen();
+            airChangedByShip.Add(room);
+            Debug.Log("[ShipAI] Venting " + room.roomName);
+        }
+
+        public void FreezeRoom(ShipRoom room)
+        {
+            room.Freeze();
+            airChangedByShip.Add(room);
+            Debug.Log("[ShipAI] Freezing " + room.roomName);
+        }
+
+        public void RestoreRoom(ShipRoom room)
+        {
+            room.RestoreAtmosphere();
+            airChangedByShip.Remove(room);
+        }
+
+        void RestoreAllAir()
+        {
+            foreach (var room in airChangedByShip)
+            {
+                if (room != null) room.RestoreAtmosphere();
+            }
+            airChangedByShip.Clear();
+        }
+
         //Opens every door the ship itself sealed (not doors a designer placed sealed)
         void ReleaseSeals()
         {
@@ -219,6 +285,7 @@ namespace Rambler.Ship
                 detection = 0f;
                 SetAlert(AlertState.Dormant);
                 ReleaseSeals();
+                RestoreAllAir();
             }
             Debug.Log("[ShipAI] Now controlled by " + controller);
             ControllerChanged?.Invoke(controller);

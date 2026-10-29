@@ -77,39 +77,47 @@ namespace Rambler.Combat
             MaxEnergy();
         }
 
+        //Portrait slots are built at runtime and hand their bars over here
+        public void BindBars(Image healthBar, Image energyBar)
+        {
+            healthbarFill = healthBar;
+            energybarFill = energyBar;
+            if (energybarFill != null) energybarFill.fillAmount = playerCurEnergy / playerMaxEnergy;
+        }
+
         public void TakeDamage(float weaponDamage)
         {
             fillDecrease = weaponDamage / playerMaxHP;
-            healthbarFill.fillAmount -= fillDecrease;
+            if (healthbarFill != null) healthbarFill.fillAmount -= fillDecrease;
         }      
 
         public void MaxHealth()
         {
             health.healthPoints.value = playerMaxHP;  
-            healthbarFill.fillAmount = 1;         
+            if (healthbarFill != null) healthbarFill.fillAmount = 1;         
         }        
 
         void MaxEnergy()
         {
             playerCurEnergy = playerMaxEnergy;
-            energybarFill.fillAmount = 1;
+            if (energybarFill != null) energybarFill.fillAmount = 1;
         }
 
         void ReduceEnergy()
         {
             playerCurEnergy -= energyBurnRate * Time.deltaTime;
             var fillEnergy = playerCurEnergy / 100;
-            energybarFill.fillAmount = fillEnergy;
+            if (energybarFill != null) energybarFill.fillAmount = fillEnergy;
         }
 
         public object CaptureState()
         {
-            return healthbarFill.fillAmount;
+            return healthbarFill != null ? healthbarFill.fillAmount : 1f;
         }
 
         public void RestoreState(object state)
         {
-            healthbarFill.fillAmount = (float)state;
+            if (healthbarFill != null) healthbarFill.fillAmount = (float)state;
         }
     }
 }

@@ -122,6 +122,16 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
             HealthCheck();
         }
 
+        //Suffocation and cold from the ship: no hit reaction and no stopping, so the victim can still escape
+        public void TakeEnvironmentalDamage(float damage)
+        {
+            if (isDead == true) return;
+            var bar = vitals != null ? vitals : GetComponent<PlayerVitals>();
+            if (bar != null) bar.TakeDamage(damage);
+            healthPoints.value = Mathf.Max(healthPoints.value - damage, 0);
+            HealthCheck();
+        }
+
         public void HealthCheck()
         {
             //Debug.Log("HealthCheckCalled" + " " + gameObject.name + healthPoints.value);
@@ -233,12 +243,12 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
                     break;
                 case "Companion":
                     //Debug.Log("Object is a Companion.");
-                    shield.SetActive(false);
+                    if (shield != null) shield.SetActive(false); //Hacked robots have no shield
                     companionDeath?.Invoke(this.gameObject);                                     
                     break;
                 case "Player":
                     //Debug.Log("Object is a Player.");
-                    shield.SetActive(false);
+                    if (shield != null) shield.SetActive(false); //Hacked robots have no shield
                     playerDeath?.Invoke(this.gameObject);
                     break;
                 default:
@@ -277,6 +287,20 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
         float GetInitialHealth()
         {
             return GetComponent<BaseStats>().GetStat(Stat.Health);
+        }
+
+        //0..1, for HUD bars
+        public float GetFraction()
+        {
+            float max = GetInitialHealth();
+            return max > 0f ? Mathf.Clamp01(healthPoints.value / max) : 0f;
+        }
+
+        //Portrait slots are built at runtime, so they hand their button and death mark over here
+        public void BindPortrait(Button button, Image deathMark)
+        {
+            activateBtn = button;
+            deathX = deathMark;
         }
 
         void HitAnim()

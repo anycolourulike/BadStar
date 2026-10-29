@@ -372,9 +372,17 @@ namespace Rambler.Control
             yield return new WaitForSeconds(0.01f);
         }
 
+        //Rebuild who to fight, e.g. after this character changes sides
+        public void RefreshTargets()
+        {
+            targetList.Clear();
+            AssignTargetList();
+            FindNearestTarget();
+        }
+
         void AssignTargetList()
         {
-            if (this.gameObject.tag == "Player")
+            if (this.gameObject.tag == "Player" || this.gameObject.tag == "Companion")
             {
                 targetList.AddRange(collection: GameObject.FindGameObjectsWithTag("Enemy"));
             }

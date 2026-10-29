@@ -22,6 +22,11 @@ namespace Rambler.Control
         public delegate void PlayerObjectChanged(GameObject newPlayer);
         public static event PlayerObjectChanged OnPlayerObjectChanged;
 
+        //No more than this many units under the player's control at once (one HUD portrait each)
+        public const int MaxPlayers = 4;
+        //Raised when a unit joins or leaves the player's side
+        public event Action PlayersChanged;
+
         public CameraManager camMan;
 
         public GameObject activePlayer;        
@@ -63,6 +68,9 @@ namespace Rambler.Control
 
         public void ControlPlayer(GameObject player)
         {
+            //Both the outgoing and incoming characters must be in the list, or the old one stays tagged Player
+            AddPlayer(activePlayer);
+            AddPlayer(player);
             activePlayer = player;
             showHideUI.HideInv(activePlayer);            
             camMan.UpdateFollow(activePlayer.transform);
@@ -90,6 +98,42 @@ namespace Rambler.Control
                 }
             }            
         } 
+
+        public bool IsFull => players.Count >= MaxPlayers;
+
+        //A character you can switch to (e.g. a hacked robot). Safe to call more than once.
+        //Returns false when the squad is already at MaxPlayers.
+        public bool AddPlayer(GameObject character)
+        {
+            if (character == null) return false;
+            if (players.Contains(character)) return true;
+            if (IsFull) return false;
+            players.Add(character);
+            PlayersChanged?.Invoke();
+            return true;
+        }
+
+        //Take control of one of your characters; ignored if they are dead or not yours
+        public void SwitchTo(GameObject character)
+        {
+            if (character == null || character == activePlayer || !players.Contains(character)) return;
+            var health = character.GetComponent<Health>();
+            if (health != null && health.IsDead()) return;
+            ControlPlayer(character);
+        }
+
+        //Called by the HUD portraits
+        public void ActivateRambler() { SwitchTo(FindPlayer("Rambler")); }
+        public void ActivateHayes() { SwitchTo(FindPlayer("Hayes")); }
+
+        GameObject FindPlayer(string characterName)
+        {
+            foreach (var character in players)
+            {
+                if (character != null && character.name == characterName) return character;
+            }
+            return null;
+        }
 
         public int PlayersCheck()
         {
@@ -155,6 +199,7 @@ namespace Rambler.Control
         void PlayerDeath(GameObject player)
         {
             players.Remove(player);
+            PlayersChanged?.Invoke();
             if(players.Count == 0)
             {
                 //Lose a life

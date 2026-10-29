@@ -33,6 +33,9 @@ namespace Rambler.Control
 
     void FindColliders()
     {
+        //Start fresh each time: a hacked robot re-enables this after changing sides
+        targetObjs.Clear();
+        playerRefs.Clear();
         if (this.gameObject.CompareTag("Enemy"))
         {
             targetObjs.AddRange(collection: GameObject.FindGameObjectsWithTag("Player"));

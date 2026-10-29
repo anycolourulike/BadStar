@@ -10,6 +10,7 @@ using Rambler.Combat;
 using Rambler.Control;
 using Rambler.Movement;
 using Rambler.Saving;
+using Rambler.Ship;
 
 namespace Rambler.EditorTools
 {
@@ -20,7 +21,7 @@ namespace Rambler.EditorTools
     {
         const string ProfileFolder = "Assets/_Prefabs/Characters/Profiles";
 
-        CharacterType type = CharacterType.Miner;
+        CharacterPreset preset = CharacterPreset.Miner;
         CharacterSetupProfile profile;
         GameObject model;
         string characterName = "";
@@ -36,21 +37,21 @@ namespace Rambler.EditorTools
 
         void OnEnable()
         {
-            profile = FindProfile(type);
+            profile = FindProfile(preset);
         }
 
         void OnGUI()
         {
             EditorGUILayout.LabelField("Character", EditorStyles.boldLabel);
             EditorGUI.BeginChangeCheck();
-            type = (CharacterType)EditorGUILayout.EnumPopup("Type", type);
-            if (EditorGUI.EndChangeCheck()) profile = FindProfile(type);
+            preset = (CharacterPreset)EditorGUILayout.EnumPopup("Preset", preset);
+            if (EditorGUI.EndChangeCheck()) profile = FindProfile(preset);
 
             profile = (CharacterSetupProfile)EditorGUILayout.ObjectField("Profile", profile, typeof(CharacterSetupProfile), false);
             if (profile == null)
             {
-                EditorGUILayout.HelpBox("No setup profile for " + type + " yet.", MessageType.Info);
-                if (GUILayout.Button("Create " + type + " Profile")) profile = CreateProfile(type);
+                EditorGUILayout.HelpBox("No setup profile for " + preset + " yet.", MessageType.Info);
+                if (GUILayout.Button("Create " + preset + " Profile")) profile = CreateProfile(preset);
             }
 
             EditorGUILayout.Space();
@@ -78,24 +79,24 @@ namespace Rambler.EditorTools
 
         // ---------- Profiles ----------
 
-        static CharacterSetupProfile FindProfile(CharacterType type)
+        static CharacterSetupProfile FindProfile(CharacterPreset preset)
         {
             foreach (var guid in AssetDatabase.FindAssets("t:CharacterSetupProfile"))
             {
                 var p = AssetDatabase.LoadAssetAtPath<CharacterSetupProfile>(AssetDatabase.GUIDToAssetPath(guid));
-                if (p != null && p.type == type) return p;
+                if (p != null && p.preset == preset) return p;
             }
             return null;
         }
 
-        static CharacterSetupProfile CreateProfile(CharacterType type)
+        static CharacterSetupProfile CreateProfile(CharacterPreset preset)
         {
             var p = CreateInstance<CharacterSetupProfile>();
-            p.type = type;
-            p.outputFolder = "Assets/_Prefabs/Characters/" + type + "s";
-            switch (type)
+            p.preset = preset;
+            p.outputFolder = "Assets/_Prefabs/Characters/" + preset + "s";
+            switch (preset)
             {
-                case CharacterType.Miner:
+                case CharacterPreset.Miner:
                     //MeatBotLaw's AI and body animations, with the rig controller that has equip_pistol
                     p.sourceCharacter = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Prefabs/Characters/MeatBots/LawBot/MeatBotLaw.prefab");
                     p.bodyController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/_Prefabs/Weapons/Contollers/MeatBot Law.controller");
@@ -104,7 +105,7 @@ namespace Rambler.EditorTools
                     break;
             }
             EnsureFolder(ProfileFolder);
-            AssetDatabase.CreateAsset(p, AssetDatabase.GenerateUniqueAssetPath(ProfileFolder + "/" + type + " Setup.asset"));
+            AssetDatabase.CreateAsset(p, AssetDatabase.GenerateUniqueAssetPath(ProfileFolder + "/" + preset + " Setup.asset"));
             AssetDatabase.SaveAssets();
             EditorGUIUtility.PingObject(p);
             return p;
@@ -300,6 +301,15 @@ namespace Rambler.EditorTools
             if (profile.bodyController != null) anim.runtimeAnimatorController = profile.bodyController;
             anim.applyRootMotion = false; //The NavMeshAgent moves characters
 
+            //A physics-driven body fights the NavMeshAgent and snaps characters back; match the player characters
+            var body = character.GetComponent<Rigidbody>();
+            if (body != null)
+            {
+                body.isKinematic = true;
+                body.useGravity = false;
+                body.interpolation = RigidbodyInterpolation.None;
+            }
+
             Transform rigLayers = root.Find("RigLayers");
             Animator rigAnim = rigLayers != null ? rigLayers.GetComponent<Animator>() : null;
             if (rigAnim != null && profile.rigController != null) rigAnim.runtimeAnimatorController = profile.rigController;
@@ -331,6 +341,12 @@ namespace Rambler.EditorTools
                 if (cls != null) cls.enumValueIndex = (int)profile.characterClass;
                 so.ApplyModifiedPropertiesWithoutUndo();
             }
+
+            var identity = character.GetComponent<CharacterIdentity>();
+            if (identity == null) identity = character.AddComponent<CharacterIdentity>();
+            var lifeSo = new SerializedObject(identity);
+            lifeSo.FindProperty("type").enumValueIndex = (int)profile.characterType;
+            lifeSo.ApplyModifiedPropertiesWithoutUndo();
 
             //A blank ID makes each scene copy generate its own save ID
             var saveable = character.GetComponent<SaveableEntity>();

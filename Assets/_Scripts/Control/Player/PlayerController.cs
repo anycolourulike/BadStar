@@ -107,6 +107,14 @@ namespace Rambler.Control
            anim = GetComponent<Animator>();
            mover = GetComponent<Mover>();
 
+           //Characters made controllable at runtime (hacked robots) arrive without these wired up
+           if (playerSelector == null) playerSelector = FindObjectOfType<PlayerSelector>();
+           if (ammoCounter == null)
+           {
+               var hudAmmo = GameObject.Find("/PlayerCore/HUD/AmmoCounter");
+               if (hudAmmo != null) ammoCounter = hudAmmo;
+           }
+
            
         }
 
@@ -126,14 +134,15 @@ namespace Rambler.Control
             if (shieldsUp == true) 
             {
                 ShieldsUp();
-                vitals.SetEnergyBurnRate = 1f;
+                if (vitals != null) vitals.SetEnergyBurnRate = 1f;
             } 
             else
             {              
                 ShieldsDown();
-                vitals.SetEnergyBurnRate = 0.1f; 
+                if (vitals != null) vitals.SetEnergyBurnRate = 0.1f; 
             }
 
+            if (HackAbility.IsArmed) return; //The next tap picks a hack target instead
             if (InteractWithCombat() || InteractWithMovement()) return;
         }      
 
@@ -465,14 +474,14 @@ namespace Rambler.Control
 
         public void ActivateAmmoCounter()
        {         
-          ammoCounter.SetActive(true);        
+          if (ammoCounter != null) ammoCounter.SetActive(true);        
        }
 
         public void DeactivateAmmoCounter()
        {
             if(ammoCounter == true)
            {
-               ammoCounter.SetActive(false);
+               if (ammoCounter != null) ammoCounter.SetActive(false);
            }  
        }
 
@@ -500,16 +509,16 @@ namespace Rambler.Control
 
         void ShieldsUp()
         {
-            shieldImg.color = Color.red;
-            shield.SetActive(true);
+            if (shieldImg != null) shieldImg.color = Color.red;
+            if (shield != null) shield.SetActive(true);
             shieldsUp = true;
         }
 
 
         void ShieldsDown() 
         {
-           shieldImg.color = Color.white;
-           shield.SetActive(false);
+           if (shieldImg != null) shieldImg.color = Color.white;
+           if (shield != null) shield.SetActive(false);
            shieldsUp = false;
         } 
 
