@@ -60,15 +60,8 @@ namespace Rambler.Control
 
         void Awake()
         {
-            if (LevelManager.Instance != null)
-            {
-                var sceneRef = LevelManager.Instance.sceneRef;
-                if (sceneRef == 0) return;
-                if (sceneRef == 1) return;
-                if (sceneRef == 2) return;
-                if (sceneRef == 5) return;
-            }
-            Debug.Log("No Level Manager Found by PC");
+            //Only missing when a level is played without the Preloader and the editor's TestEnvironment is off
+            if (LevelManager.Instance == null) Debug.Log("No Level Manager Found by PC");
         }
 
         void OnEnable()

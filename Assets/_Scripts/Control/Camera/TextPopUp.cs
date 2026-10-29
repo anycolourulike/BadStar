@@ -18,7 +18,10 @@ public class TextPopUp : MonoBehaviour
     void Start()
     {
         timer = 0f;
-        textStartLocalPos = textObj.transform.localPosition;
+        //Prefabs can't reference the scene's camera, and the text itself is what drifts
+        if (mainCamera == null) mainCamera = Camera.main;
+        if (textObj == null && textPopUP != null) textObj = textPopUP.gameObject;
+        if (textObj != null) textStartLocalPos = textObj.transform.localPosition;
     }
 
     void Update()

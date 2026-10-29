@@ -123,6 +123,12 @@ public class LevelManager : MonoBehaviour, ISaveable
 
     public void OnLevelFinishedLoading()
     {
+        OnLevelFinishedLoading(loadSave: true);
+    }
+
+    //The test environment sets a level up without loading the save file, so it starts as placed
+    public void OnLevelFinishedLoading(bool loadSave)
+    {
         System.GC.Collect();
         FindAssetPath();
         AmbientMusic();
@@ -134,7 +140,7 @@ public class LevelManager : MonoBehaviour, ISaveable
             FindPlayerSelector();
         }
         
-        StartCoroutine(nameof(LoadSavedFile));
+        if (loadSave) StartCoroutine(nameof(LoadSavedFile));
         StartCoroutine(nameof(SetUpLevel));
         if (sceneToLoad == crashSite)
         {
@@ -173,6 +179,8 @@ public class LevelManager : MonoBehaviour, ISaveable
         {
             playerHealth = activePlayer.GetComponent<Health>();
             enemySpawner.FindPopUp();
+            //The level's fader is saved inactive; switch it on so it can fade in from black
+            fader.gameObject.SetActive(true);
             fader.FadeToClear(2f);
         }
     }
