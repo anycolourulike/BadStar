@@ -96,15 +96,17 @@ namespace Rambler.Ship
         }
 
         //Slams the door on everyone in the doorway. Returns how many characters it hit.
-        public int Crush()
+        //The player's own crush spares their squad, and only fires when an enemy is there.
+        public int Crush(bool sparePlayerSide = false)
         {
-            var victims = DoorwayOccupants();
+            var victims = new List<GameObject>(DoorwayOccupants()); //Copy: damage can kill and change the list
+            if (sparePlayerSide) victims.RemoveAll(ShipCharacters.IsPlayerSide);
             if (victims.Count == 0) return 0;
 
             if (state == DoorState.Open) SetState(DoorState.Closed);
             Fire(closeTrigger, openTrigger);
             int hit = 0;
-            foreach (var character in new List<GameObject>(victims)) //Copy: damage can kill and change the list
+            foreach (var character in victims)
             {
                 var health = character.GetComponent<Health>();
                 if (health == null) continue;

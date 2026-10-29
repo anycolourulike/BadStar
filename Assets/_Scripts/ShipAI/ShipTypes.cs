@@ -18,6 +18,15 @@ namespace Rambler.Ship
         Lockdown     //Alert held too long; every door seals
     }
 
+    //Ship systems a terminal hands to the player. The ship stops using a system once the player has it;
+    //when every terminal is hacked the whole ship changes sides.
+    public enum ShipControl
+    {
+        Doors,        //Seal, open and crush doors
+        LifeSupport,  //Vent oxygen, freeze and restore rooms
+        Sensors       //Blind the ship and see who is in each room
+    }
+
     //Shared lookups for working out which character a collider belongs to and whose side it is on
     public static class ShipCharacters
     {

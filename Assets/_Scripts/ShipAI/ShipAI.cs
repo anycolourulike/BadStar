@@ -8,12 +8,14 @@ namespace Rambler.Ship
     //The ship's brain, one per level. Sensors feed it a detection level; as that rises it moves
     //Dormant > Suspicious > Alert > Lockdown and responds: trapping the player's room, venting or
     //freezing it when a human is inside, slamming doors on them, and sealing the whole ship.
-    //Hacking terminals (later phase) hands it to the player.
+    //Each hacked ShipTerminal hands one system (doors, life support, sensors) to the player, who
+    //then uses it from the ship map; once every terminal is hacked the whole ship changes sides.
     public class ShipAI : MonoBehaviour
     {
         public static ShipAI Instance { get; private set; }
         public static event Action<AlertState> AlertChanged;
         public static event Action<ShipFaction> ControllerChanged;
+        public static event Action<ShipControl> ControlGranted;
 
         [Header("Detection")]
         [SerializeField] float suspiciousAt = 25f;
@@ -55,8 +57,11 @@ namespace Rambler.Ship
         bool freezeNext;
         readonly HashSet<ShipDoor> sealedByShip = new();
         readonly HashSet<ShipRoom> airChangedByShip = new();
+        readonly HashSet<ShipControl> playerControls = new();
 
         public ShipFaction Controller => controller;
+        //True once the player has hacked the system (or taken the whole ship)
+        public bool PlayerHas(ShipControl system) => controller == ShipFaction.Player || playerControls.Contains(system);
         public AlertState Alert => alert;
         public float Detection => detection;
         public ShipRoom LastKnownRoom { get; private set; }
@@ -107,12 +112,24 @@ namespace Rambler.Ship
         //Called by sensors each time they see a player character
         public void ReportSighting(ShipSensor sensor, GameObject target, float amount)
         {
-            if (controller != ShipFaction.Hostile) return;
+            if (controller != ShipFaction.Hostile || PlayerHas(ShipControl.Sensors)) return;
             detection = Mathf.Min(100f, detection + amount);
             timeSinceSighting = 0f;
             LastSeenTarget = target;
             LastKnownPosition = target.transform.position;
-            LastKnownRoom = ShipRoom.At(LastKnownPosition) ?? sensor.Room;
+            LastKnownRoom = ShipRoom.At(LastKnownPosition) ?? (sensor != null ? sensor.Room : null); //No sensor: a terminal alarm
+        }
+
+        //Something the ship can't miss (a camera destroyed): straight to Alert, with the trouble's
+        //location as the last known position. A ship blinded by a hacked Sensors terminal never hears it.
+        public void RaiseAlarm(Vector3 position, ShipRoom room, string reason)
+        {
+            if (controller != ShipFaction.Hostile || PlayerHas(ShipControl.Sensors)) return;
+            detection = Mathf.Max(detection, alertAt + 10f);
+            timeSinceSighting = 0f;
+            LastKnownPosition = position;
+            LastKnownRoom = room;
+            Debug.Log("[ShipAI] Alarm: " + reason + (room != null ? " in " + room.roomName : ""));
         }
 
         void UpdateAlertState()
@@ -134,7 +151,7 @@ namespace Rambler.Ship
             alert = next;
             Debug.Log("[ShipAI] " + alert + " (detection " + detection.ToString("F0") + ")");
 
-            if (alert == AlertState.Lockdown) SealEveryDoor();
+            if (alert == AlertState.Lockdown && !PlayerHas(ShipControl.Doors)) SealEveryDoor();
             if (alert <= AlertState.Suspicious)
             {
                 ReleaseSeals();
@@ -148,7 +165,9 @@ namespace Rambler.Ship
             if (alert < AlertState.Alert || LastKnownRoom == null) return;
 
             //Humans can be killed with the air itself; robots only get trapped
-            if (attackLifeSupport && Time.time >= lifeSupportReadyAt && LastKnownRoom.HasBreather(playerSide: true))
+            bool canUseDoors = !PlayerHas(ShipControl.Doors);
+            if (attackLifeSupport && canUseDoors && !PlayerHas(ShipControl.LifeSupport) &&
+                Time.time >= lifeSupportReadyAt && LastKnownRoom.HasBreather(playerSide: true))
             {
                 StartCoroutine(AttackLifeSupport(LastKnownRoom, freezeNext));
                 freezeNext = !freezeNext;
@@ -157,7 +176,7 @@ namespace Rambler.Ship
                 return;
             }
 
-            if (trapPlayerRoom && Time.time >= trapReadyAt && LastKnownRoom.HasPlayerSide())
+            if (trapPlayerRoom && canUseDoors && Time.time >= trapReadyAt && LastKnownRoom.HasPlayerSide())
             {
                 SealRoom(LastKnownRoom, trapDuration);
                 trapReadyAt = Time.time + trapCooldown;
@@ -177,7 +196,7 @@ namespace Rambler.Ship
 
         void OnDoorwayEntered(ShipDoor door, GameObject character)
         {
-            if (!crushDoors || controller != ShipFaction.Hostile || alert < AlertState.Alert) return;
+            if (!crushDoors || controller != ShipFaction.Hostile || alert < AlertState.Alert || PlayerHas(ShipControl.Doors)) return;
             if (!ShipCharacters.IsPlayerSide(character) || Time.time < crushReadyAt) return;
             //Give them a moment to step fully into the doorway
             StartCoroutine(CrushAfter(door, 0.35f));
@@ -274,7 +293,76 @@ namespace Rambler.Ship
             sealedByShip.Clear();
         }
 
-        //Terminal takeover (later phase) calls this to hand the ship over
+        //A hacked terminal hands one system to the player. The ship lets go of it straight away,
+        //and once every terminal in the level is hacked the whole ship changes sides.
+        public void GrantControl(ShipControl system)
+        {
+            if (!playerControls.Add(system)) return;
+            switch (system)
+            {
+                case ShipControl.Doors:
+                    ReleaseSeals();
+                    break;
+                case ShipControl.LifeSupport:
+                    RestoreAllAir();
+                    break;
+                case ShipControl.Sensors:
+                    //The ship goes blind: no new sightings, and what it knew fades
+                    foreach (var sensor in FindObjectsOfType<ShipSensor>()) sensor.SetOnline(false);
+                    break;
+            }
+            Debug.Log("[ShipAI] Player took " + system);
+            ControlGranted?.Invoke(system);
+            if (ShipTerminal.AllHacked) SetController(ShipFaction.Player);
+        }
+
+        // ---------- Player commands from the ship map; each needs its system hacked ----------
+
+        public bool PlayerSeal(ShipRoom room, bool sealedShut)
+        {
+            if (room == null || !PlayerHas(ShipControl.Doors)) return false;
+            room.SetDoorsSealed(sealedShut);
+            foreach (var door in room.Doors) sealedByShip.Remove(door); //Now the player's seal, not the ship's
+            return true;
+        }
+
+        //Slams the room's doors on any enemy standing in a doorway. Returns how many were hit.
+        public int PlayerCrush(ShipRoom room)
+        {
+            if (room == null || !PlayerHas(ShipControl.Doors)) return 0;
+            int hit = 0;
+            foreach (var door in room.Doors)
+            {
+                if (door != null) hit += door.Crush(sparePlayerSide: true);
+            }
+            return hit;
+        }
+
+        public bool PlayerVent(ShipRoom room)
+        {
+            if (room == null || !PlayerHas(ShipControl.LifeSupport)) return false;
+            room.VentOxygen();
+            airChangedByShip.Remove(room);
+            return true;
+        }
+
+        public bool PlayerFreeze(ShipRoom room)
+        {
+            if (room == null || !PlayerHas(ShipControl.LifeSupport)) return false;
+            room.Freeze();
+            airChangedByShip.Remove(room);
+            return true;
+        }
+
+        public bool PlayerRestore(ShipRoom room)
+        {
+            if (room == null || !PlayerHas(ShipControl.LifeSupport)) return false;
+            room.RestoreAtmosphere();
+            airChangedByShip.Remove(room);
+            return true;
+        }
+
+        //Called when every terminal is hacked (or directly, for testing) to hand the ship over
         public void SetController(ShipFaction faction)
         {
             if (faction == controller) return;

@@ -1,15 +1,20 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Rambler.Control;
 
 namespace Rambler.Ship
 {
-    //One area of the ship. A trigger box that tracks who is inside, which doors lead out,
-    //and the room's air: oxygen and temperature, which the ship can drain or chill.
+    //One area of the ship, defined by its box collider (a trigger). Tracks who is inside and what
+    //they are (humans, robots, drones), which doors lead out, its security camera, and the room's
+    //air: oxygen and temperature, which the ship can drain or chill.
     [RequireComponent(typeof(BoxCollider))]
     public class ShipRoom : MonoBehaviour
     {
         static readonly List<ShipRoom> all = new();
         public static IReadOnlyList<ShipRoom> All => all;
+        //Someone entered or left (sent with the character and true when they entered)
+        public event Action<ShipRoom, GameObject, bool> OccupantsChanged;
 
         public string roomName;
         [SerializeField] List<ShipDoor> doors = new();
@@ -106,6 +111,7 @@ namespace Rambler.Ship
 
         public bool Contains(Vector3 position)
         {
+            if (box == null) box = GetComponent<BoxCollider>(); //Editor tools call this outside Play mode
             //ClosestPoint returns the point itself when it is inside, and works for rotated boxes
             return (box.ClosestPoint(position) - position).sqrMagnitude < 0.0001f;
         }
@@ -145,6 +151,63 @@ namespace Rambler.Ship
             return false;
         }
 
+        //How many living characters of a type are inside: either side, or just the player's / the enemy's
+        public int Count(CharacterType type)
+        {
+            int count = 0;
+            foreach (var character in Occupants)
+            {
+                if (TypeOf(character) == type) count++;
+            }
+            return count;
+        }
+
+        public int Count(CharacterType type, bool playerSide)
+        {
+            int count = 0;
+            foreach (var character in Occupants)
+            {
+                if (TypeOf(character) == type && ShipCharacters.IsPlayerSide(character) == playerSide) count++;
+            }
+            return count;
+        }
+
+        public int Humans => Count(CharacterType.Human);
+        public int Robots => Count(CharacterType.Robot);
+        public int Drones => Count(CharacterType.Drone);
+
+        //Characters without a CharacterIdentity count as nothing in particular
+        static CharacterType? TypeOf(GameObject character)
+        {
+            var identity = character.GetComponent<CharacterIdentity>();
+            return identity != null ? identity.Type : (CharacterType?)null;
+        }
+
+        //The camera watching this room (a working one if there is one), or null
+        public ShipCamera Camera
+        {
+            get
+            {
+                ShipCamera broken = null;
+                foreach (var cam in ShipCamera.All)
+                {
+                    if (!Contains(cam.transform.position)) continue;
+                    if (!cam.IsDestroyed) return cam;
+                    broken = cam;
+                }
+                return broken;
+            }
+        }
+
+        public bool HasWorkingCamera
+        {
+            get
+            {
+                var cam = Camera;
+                return cam != null && !cam.IsDestroyed;
+            }
+        }
+
         public void SetDoorsSealed(bool sealedShut)
         {
             foreach (var door in doors)
@@ -159,13 +222,18 @@ namespace Rambler.Ship
             if (character == null) return;
             occupants.TryGetValue(character, out int count);
             occupants[character] = count + 1;
+            if (count == 0) OccupantsChanged?.Invoke(this, character, true);
         }
 
         void OnTriggerExit(Collider other)
         {
             var character = ShipCharacters.Root(other);
             if (character == null || !occupants.TryGetValue(character, out int count)) return;
-            if (count <= 1) occupants.Remove(character);
+            if (count <= 1)
+            {
+                occupants.Remove(character);
+                OccupantsChanged?.Invoke(this, character, false);
+            }
             else occupants[character] = count - 1;
         }
 
@@ -193,6 +261,23 @@ namespace Rambler.Ship
             foreach (var door in doors)
             {
                 if (door != null) Gizmos.DrawLine(transform.position, door.transform.position);
+            }
+
+            //Every room needs a camera: link it in cyan, or cross the room out in red if there is none
+            bool hasCamera = false;
+            foreach (var cam in FindObjectsOfType<ShipCamera>())
+            {
+                if (!Contains(cam.transform.position)) continue;
+                hasCamera = true;
+                Gizmos.color = Color.cyan;
+                Gizmos.DrawLine(transform.position, cam.transform.position);
+            }
+            if (!hasCamera)
+            {
+                var bounds = GetComponent<BoxCollider>().bounds;
+                Gizmos.color = Color.red;
+                Gizmos.DrawLine(bounds.min, bounds.max);
+                Gizmos.DrawLine(new Vector3(bounds.min.x, bounds.max.y, bounds.min.z), new Vector3(bounds.max.x, bounds.min.y, bounds.max.z));
             }
         }
     }
