@@ -64,7 +64,13 @@ namespace Rambler.Control
            FOV = GetComponent<DroneFOV>();
            animator = GetComponent<Animator>();
            combatTarget = GetComponent<CombatTarget>();
-           
+           //Drones the ship deploys at runtime aren't wired up in the scene
+           if (playerSelector == null)
+           {
+               var playerCore = GameObject.Find("/PlayerCore");
+               if (playerCore != null) playerSelector = playerCore.GetComponent<PlayerSelector>();
+           }
+
             
             stateMachine = new StateMachine();
             //States
@@ -110,6 +116,7 @@ namespace Rambler.Control
 
         public void FacePlayer()
         {            
+            if (playerSelector == null || playerSelector.activePlayer == null) return;
             player = playerSelector.activePlayer;
             mover.RotateTowards(player.transform);
         }
@@ -119,9 +126,13 @@ namespace Rambler.Control
             if(other.gameObject.CompareTag("Player") || (other.gameObject.CompareTag("Companion")))
             {
                 AudioManager.PlayTimbertoesSound(AudioManager.TimbertoesSound.droneExplosion, this.transform.position);
-                deathFX.SetActive(true);
-                deathFX.transform.SetParent(null);
-                deathFX.transform.position = other.transform.position + new Vector3(0, 1.3f, 0);
+                if (deathFX != null)
+                {
+                    deathFX.SetActive(true);
+                    deathFX.transform.SetParent(null);
+                    deathFX.transform.position = other.transform.position + new Vector3(0, 1.3f, 0);
+                }
+                LeaveEnemyList();
                 Destroy(gameObject);
                 var health = other.GetComponent<Health>();
                 if (health != null) health.TakeDamage(targetDamage);
@@ -142,9 +153,20 @@ namespace Rambler.Control
         public void DroneDeath()
         {
             AudioManager.PlayTimbertoesSound(AudioManager.TimbertoesSound.droneExplosion, this.transform.position);
-            deathFX.SetActive(true);
-            deathFX.transform.SetParent(null);
+            if (deathFX != null)
+            {
+                deathFX.SetActive(true);
+                deathFX.transform.SetParent(null);
+            }
+            LeaveEnemyList();
             Destroy(gameObject);
+        }
+
+        //A drone destroys itself rather than dying through Health, so tell the spawner it's gone
+        void LeaveEnemyList()
+        {
+            var spawner = FindObjectOfType<EnemySpawner>();
+            if (spawner != null) spawner.RemoveEnemy(gameObject);
         }
 
         public void IncreaseSpeed()

@@ -19,6 +19,8 @@ namespace Rambler.Ship
             if (character == null || !character.CompareTag("Enemy")) return false;
             var identity = character.GetComponent<CharacterIdentity>();
             var health = character.GetComponent<Health>();
+            //Only units on the standard AI can switch sides; suicide drones (DroneCon) would still explode on the player
+            if (character.GetComponent<AIController>() == null) return false;
             return identity != null && identity.CanBeHacked && health != null && !health.IsDead();
         }
 

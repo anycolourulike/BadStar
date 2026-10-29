@@ -178,6 +178,15 @@ namespace Rambler.Core
             
         }
 
+        //Adds an enemy that arrived mid-level (e.g. deployed by the ship) to the current wave,
+        //so the wave and level don't end while it is still alive
+        public void RegisterEnemy(GameObject enemy)
+        {
+            if (enemy == null || enemiesList.Contains(enemy)) return;
+            enemiesList.Add(enemy);
+            nextWaveCount++;
+        }
+
         //Removes Enemy and checks parent object if empty
         public void RemoveEnemy(GameObject enemyToRemove)
         {

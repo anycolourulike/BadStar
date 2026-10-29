@@ -34,6 +34,13 @@ public class WeaponIK : MonoBehaviour
     void Start()
     {
         Animator anim = GetComponent<Animator>();
+        //Only humanoid rigs have the bones to aim with (drones don't)
+        if (anim == null || !anim.isHuman)
+        {
+            boneTransforms = new Transform[0];
+            enabled = false;
+            return;
+        }
         boneTransforms = new Transform[humanBones.Length];
         for(int i = 0; i < boneTransforms.Length; i++)
         {

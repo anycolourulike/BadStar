@@ -306,15 +306,16 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
         void HitAnim()
         {  
             if(isDead) return;
-            if(gameObject.name == ("SuicideDrone"))
+            //Suicide drones blow up when hit (ship-deployed ones are renamed, so look for the controller)
+            var droneCon = GetComponent<DroneCon>();
+            if (droneCon != null)
             {
-                var droneCon = GetComponent<DroneCon>();
                 droneCon.DroneDeath();
                 return;
             }
             anim.SetTrigger("HitAnim");
-            if(gameObject.CompareTag("Player")) return; 
-            FOV.radius = 40f;
+            if(gameObject.CompareTag("Player")) return;
+            if (FOV != null) FOV.radius = 40f;
             AudioManager.PlayHumanSound(AudioManager.HumanSound.Hit1, position: this.transform.position); 
         }
         
