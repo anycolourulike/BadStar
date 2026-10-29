@@ -324,8 +324,10 @@ namespace Rambler.Control
         }
 
         void OnTriggerEnter(Collider other)
-        {            
-            activePlayer = playerSelector.activePlayer;            
+        {
+            //Trigger messages reach disabled controllers too (companions), which may not have looked up the selector yet
+            if (playerSelector == null) return;
+            activePlayer = playerSelector.activePlayer;
             if (this.gameObject != activePlayer) return;
             //Weapon pick ups ("weaponPU") show their own world space prompt; see WeaponPickUp
 

@@ -8,7 +8,8 @@ namespace Rambler.Ship
 {
     //A door the ship can control one at a time. Opens for characters like DoorOpen does,
     //and the ship can seal it shut or slam it on whoever is standing in the doorway.
-    //Put it on the object with the doorway trigger; the Animator needs Open and Close triggers.
+    //Put it on the object with the doorway trigger. Animate it with an Animator (Open and Close
+    //triggers) or with sliding panels that move by their offsets, in this object's space, when open.
     [RequireComponent(typeof(Collider))]
     public class ShipDoor : MonoBehaviour
     {
@@ -23,6 +24,12 @@ namespace Rambler.Ship
         [SerializeField] string closeTrigger = "Close";
         [SerializeField] float stayOpenTime = 4f;   //Closes this long after the doorway empties
 
+        [Header("Sliding Panels (instead of an Animator)")]
+        [SerializeField] Transform[] slidingPanels;
+        [Tooltip("How far each panel moves when open, in this object's space, matched to Sliding Panels by index.")]
+        [SerializeField] Vector3[] openOffsets;
+        [SerializeField] float slideSpeed = 4f;
+
         [Header("Ship Control")]
         [SerializeField] float crushDamage = 150f;
         [Tooltip("Optional. Carves the NavMesh while sealed so AI stops pathing through.")]
@@ -34,6 +41,8 @@ namespace Rambler.Ship
         readonly List<GameObject> doorwayList = new();
         DoorState state = DoorState.Closed;
         float emptyTimer;
+        Vector3[] closedLocal;
+        Vector3[] openLocal;
 
         public DoorState State => state;
         public bool IsSealed => state == DoorState.Sealed;
@@ -49,10 +58,29 @@ namespace Rambler.Ship
             if (anim == null) anim = GetComponentInParent<Animator>();
             if (obstacle != null) obstacle.enabled = false;
             if (sealedIndicator != null) sealedIndicator.SetActive(false);
+            RecordPanels();
+        }
+
+        //Panels may sit anywhere in the model's hierarchy, so work out each one's open spot in its own parent's space
+        void RecordPanels()
+        {
+            int count = slidingPanels != null ? slidingPanels.Length : 0;
+            closedLocal = new Vector3[count];
+            openLocal = new Vector3[count];
+            for (int i = 0; i < count; i++)
+            {
+                var panel = slidingPanels[i];
+                if (panel == null) continue;
+                closedLocal[i] = panel.localPosition;
+                Vector3 offset = openOffsets != null && i < openOffsets.Length ? openOffsets[i] : Vector3.zero;
+                Vector3 worldOffset = transform.TransformVector(offset);
+                openLocal[i] = closedLocal[i] + (panel.parent != null ? panel.parent.InverseTransformVector(worldOffset) : worldOffset);
+            }
         }
 
         void Update()
         {
+            SlidePanels();
             if (state != DoorState.Open) return;
             if (DoorwayOccupants().Count > 0)
             {
@@ -149,6 +177,19 @@ namespace Rambler.Ship
             if (character == null || !inDoorway.TryGetValue(character, out int count)) return;
             if (count <= 1) inDoorway.Remove(character);
             else inDoorway[character] = count - 1;
+        }
+
+        void SlidePanels()
+        {
+            if (closedLocal == null) return;
+            bool open = state == DoorState.Open;
+            for (int i = 0; i < closedLocal.Length; i++)
+            {
+                var panel = slidingPanels[i];
+                if (panel == null) continue;
+                var target = open ? openLocal[i] : closedLocal[i];
+                panel.localPosition = Vector3.MoveTowards(panel.localPosition, target, slideSpeed * Time.deltaTime);
+            }
         }
 
         void SetState(DoorState next)
