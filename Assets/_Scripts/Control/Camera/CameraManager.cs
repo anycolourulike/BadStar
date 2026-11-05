@@ -27,7 +27,7 @@ public class CameraManager : MonoBehaviour
     [SerializeField] float smoothing = 10f;
 
     [Header("Joystick pan")]
-    [SerializeField] float panSpeed = 30f;      //Metres per second at full joystick
+    [SerializeField] float panSpeed = 12f;      //Metres per second at full joystick
     [SerializeField] float maxPan = 80f;        //How far the view can slide away from the player
 
     float targetYaw;
