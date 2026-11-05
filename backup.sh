@@ -24,6 +24,8 @@ echo "== 1. git (scripts)"
 n=$(git status --porcelain | wc -l)
 [ "$n" -gt 0 ] && echo "   note: $n uncommitted script change(s) are NOT in git yet (they still go to Plastic and F:)"
 [ -d "$DEST/git/BadStar.git" ] || git init --bare -q "$DEST/git/BadStar.git"
+# RANDY's file system doesn't record owners, so git needs it listed as safe once
+git config --global --get-all safe.directory | grep -qx "$DEST/git/BadStar.git" || git config --global --add safe.directory "$DEST/git/BadStar.git"
 git remote get-url randy >/dev/null 2>&1 || git remote add randy "$DEST/git/BadStar.git"
 git push -q randy --all && git push -q randy --tags && echo "   pushed all branches to RANDY" || { echo "   git push to RANDY FAILED"; fail=1; }
 git -c http.sslBackend=schannel push -q BadStar HEAD && echo "   pushed $(git branch --show-current) to GitHub" || { echo "   git push to GitHub FAILED"; fail=1; }
@@ -32,7 +34,7 @@ echo "== 2. Plastic (models, scenes, settings)"
 pending=$("$CM" status --short | wc -l)
 if [ "$pending" -gt 0 ]; then
   echo "   checking in $pending change(s)..."
-  "$CM" checkin --all --private -c="$MSG" && echo "   Plastic check-in done" || { echo "   Plastic check-in FAILED"; fail=1; }
+  "$CM" checkin --all --private --dependencies -c="$MSG" && echo "   Plastic check-in done" || { echo "   Plastic check-in FAILED"; fail=1; }
 else
   echo "   nothing to check in"
 fi
