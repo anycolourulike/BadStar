@@ -1,0 +1,32 @@
+# BadStar backup protocol (see backup.sh / CLAUDE.md "Backups"):
+#   git     -> scripts only (Assets/_Scripts code + data), GitHub + F:\BadStarBackup\git
+#   Plastic -> everything else: models, scenes, prefabs, materials, ProjectSettings, Packages (ignore.conf)
+#   F:      -> mirror of both, plus the Blender sources in D:\BadStar
+
+# Ignore the whole project...
+/*
+
+# ...except these
+!/.gitignore
+!/backup.sh
+!/CLAUDE.md
+!/Assets/
+/Assets/*
+!/Assets/_Scripts/
+!/Assets/_Scripts.meta
+
+# Inside _Scripts, models / audio / images / scenes belong to Plastic, not git
+/Assets/_Scripts/**/*.fbx
+/Assets/_Scripts/**/*.fbx.meta
+/Assets/_Scripts/**/*.blend
+/Assets/_Scripts/**/*.blend1
+/Assets/_Scripts/**/*.obj
+/Assets/_Scripts/**/*.mp3
+/Assets/_Scripts/**/*.wav
+/Assets/_Scripts/**/*.ogg
+/Assets/_Scripts/**/*.png
+/Assets/_Scripts/**/*.jpg
+/Assets/_Scripts/**/*.tga
+/Assets/_Scripts/**/*.psd
+/Assets/_Scripts/**/*.exr
+/Assets/_Scripts/**/*.unity
