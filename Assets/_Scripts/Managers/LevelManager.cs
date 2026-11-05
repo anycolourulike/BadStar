@@ -172,8 +172,20 @@ public class LevelManager : MonoBehaviour, ISaveable
             enemySpawner.FindPopUp();
             //The level's fader is saved inactive; switch it on so it can fade in from black
             fader.gameObject.SetActive(true);
-            fader.FadeToClear(2f);
+            StartCoroutine(FadeInWhenAreasReady(fader));
         }
+    }
+
+    //Streamed levels: stay black until the areas around the player have loaded (gives up after 15 s)
+    IEnumerator FadeInWhenAreasReady(Fader fader)
+    {
+        float waited = 0f;
+        while (!AreaStreamer.InitialAreasReady && waited < 15f)
+        {
+            waited += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        fader.FadeToClear(2f);
     }
 
     void FindSceneRefs()

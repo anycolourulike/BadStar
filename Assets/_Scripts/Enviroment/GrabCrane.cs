@@ -20,6 +20,10 @@ namespace Rambler.Mine
         [Header("Ore cars and their loads (same order)")]
         [SerializeField] Transform[] oreCars;
         [SerializeField] GameObject[] oreLoads;
+        [Tooltip("The train and its cars live in the always-loaded core scene while the crane streams in with the yard, " +
+                 "so they are found again by these names when the yard loads")]
+        [SerializeField] string[] oreCarNames;
+        [SerializeField] string[] oreLoadNames;
         [Header("Heights and positions (world)")]
         [SerializeField] float pileX;
         [SerializeField] float pileDropY;
@@ -42,8 +46,40 @@ namespace Rambler.Mine
         int unloadIndex = -1, loadIndex = -1;
         bool busy;
 
+        //Any loaded scene, inactive objects included (unloaded ore loads are switched off)
+        static Transform FindAnywhere(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            for (int s = 0; s < UnityEngine.SceneManagement.SceneManager.sceneCount; s++)
+            {
+                var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(s);
+                if (!scene.isLoaded) continue;
+                foreach (var root in scene.GetRootGameObjects())
+                    foreach (var t in root.GetComponentsInChildren<Transform>(true))
+                        if (t.name == name) return t;
+            }
+            return null;
+        }
+
+        //Re-link the parts that live in the core scene (train, ore cars, loads)
+        void Relink()
+        {
+            if (train == null) train = FindFirstObjectByType<TrainLoop>();
+            if (oreCarNames != null && oreCarNames.Length > 0)
+            {
+                if (oreCars == null || oreCars.Length != oreCarNames.Length) oreCars = new Transform[oreCarNames.Length];
+                for (int i = 0; i < oreCarNames.Length; i++) if (oreCars[i] == null) oreCars[i] = FindAnywhere(oreCarNames[i]);
+            }
+            if (oreLoadNames != null && oreLoadNames.Length > 0)
+            {
+                if (oreLoads == null || oreLoads.Length != oreLoadNames.Length) oreLoads = new GameObject[oreLoadNames.Length];
+                for (int i = 0; i < oreLoadNames.Length; i++) if (oreLoads[i] == null) { var t = FindAnywhere(oreLoadNames[i]); oreLoads[i] = t != null ? t.gameObject : null; }
+            }
+        }
+
         void Awake()
         {
+            Relink();
             myTurn = partner == null || goesFirst;
             //The parts come in as siblings from the model; chain them so each carries the next
             if (trolley != null && gantry != null) trolley.SetParent(gantry, true);
@@ -64,6 +100,9 @@ namespace Rambler.Mine
         void OnDisable()
         {
             if (train != null) train.Arrived -= OnArrived;
+            //Yard unloaded (or crane switched off) mid-unload: never leave the train held
+            if (busy && train != null) train.Hold = false;
+            busy = false;
         }
 
         void Start()

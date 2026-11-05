@@ -40,6 +40,8 @@ public class CameraManager : MonoBehaviour
     CinemachineTransposer transposer;
 
     public float Yaw => currentYaw;
+    //Where the camera is looking: the player plus any joystick pan (area streaming loads around this too)
+    public Vector3 FocusPoint => pivot != null ? pivot.position : transform.position;
 
     void Awake()
     {

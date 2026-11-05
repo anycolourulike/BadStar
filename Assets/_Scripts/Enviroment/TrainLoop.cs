@@ -58,6 +58,9 @@ namespace Rambler.Mine
         public class Gate
         {
             public ShipDoor door;
+            [Tooltip("The gate door's name: the door lives in a streamed area scene, so it is found again by name whenever that area loads")]
+            public string doorName;
+            [NonSerialized] public float nextLookup;
             [NonSerialized] public float[] crossings;   //Path distances where the track passes through the doorway
             [NonSerialized] public float openSince = -1f;
             [NonSerialized] public float emptyFor;
@@ -154,27 +157,44 @@ namespace Rambler.Mine
         void FindGateCrossings()
         {
             if (gates == null) return;
-            foreach (var g in gates)
+            foreach (var g in gates) FindGateCrossings(g);
+        }
+
+        void FindGateCrossings(Gate g)
+        {
+            var found = new List<float>();
+            if (g.door != null)
             {
-                var found = new List<float>();
-                if (g.door != null)
+                var t = g.door.transform;
+                float halfWidth = g.door.OpeningSize.x * 0.5f + 1f;
+                //Only crossings through the doorway count: track passing above or below it (e.g. the spiral
+                //under the tunnel portal) cuts the same plane at another height
+                float halfHeight = g.door.OpeningSize.y * 0.5f + 1f;
+                for (int i = 0; i < path.Length; i++)
                 {
-                    var t = g.door.transform;
-                    float halfWidth = g.door.OpeningSize.x * 0.5f + 1f;
-                    //Only crossings through the doorway count: track passing above or below it (e.g. the spiral
-                    //under the tunnel portal) cuts the same plane at another height
-                    float halfHeight = g.door.OpeningSize.y * 0.5f + 1f;
-                    for (int i = 0; i < path.Length; i++)
-                    {
-                        Vector3 a = t.InverseTransformPoint(path[i]), b = t.InverseTransformPoint(path[(i + 1) % path.Length]);
-                        if ((a.z < 0f) == (b.z < 0f)) continue;
-                        float f = a.z / (a.z - b.z);
-                        if (Mathf.Abs(Mathf.Lerp(a.x, b.x, f)) > halfWidth) continue;
-                        if (Mathf.Abs(Mathf.Lerp(a.y, b.y, f)) > halfHeight) continue;
-                        found.Add(cum[i] + f * (cum[i + 1] - cum[i]));
-                    }
+                    Vector3 a = t.InverseTransformPoint(path[i]), b = t.InverseTransformPoint(path[(i + 1) % path.Length]);
+                    if ((a.z < 0f) == (b.z < 0f)) continue;
+                    float f = a.z / (a.z - b.z);
+                    if (Mathf.Abs(Mathf.Lerp(a.x, b.x, f)) > halfWidth) continue;
+                    if (Mathf.Abs(Mathf.Lerp(a.y, b.y, f)) > halfHeight) continue;
+                    found.Add(cum[i] + f * (cum[i + 1] - cum[i]));
                 }
-                g.crossings = found.ToArray();
+            }
+            g.crossings = found.ToArray();
+        }
+
+        //A gate whose area scene is not loaded has no door: the train runs through. Once the area loads, the door
+        //is found again by name and its crossings worked out.
+        void RelinkGate(Gate g)
+        {
+            if (string.IsNullOrEmpty(g.doorName) || Time.time < g.nextLookup) return;
+            g.nextLookup = Time.time + 1f;
+            foreach (var d in ShipDoor.All)
+            {
+                if (d == null || d.name != g.doorName) continue;
+                g.door = d; g.openSince = -1f; g.emptyFor = 0f; g.relock = false;
+                FindGateCrossings(g);
+                return;
             }
         }
 
@@ -186,6 +206,7 @@ namespace Rambler.Mine
             if (gates == null) return room;
             foreach (var g in gates)
             {
+                if (g.door == null) RelinkGate(g);
                 var door = g.door;
                 if (door == null || g.crossings == null || door.IsBroken) continue;
                 bool approaching = false, inside = false;
