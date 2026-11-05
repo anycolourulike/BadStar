@@ -163,6 +163,7 @@ namespace Rambler.Control
         {
             if (Input.touchCount > 0)
             {
+                if (CameraJoystick.Active) return true; //Dragging the camera joystick never shoots, even when the finger strays off it
                 Touch touch = Input.GetTouch(0);
                 Ray ray = Camera.main.ScreenPointToRay(touch.position);
                 RaycastHit hit;
@@ -211,6 +212,7 @@ namespace Rambler.Control
            if(isDead == true) return false;
            fighter.CancelTarget();
            if (Input.touchCount == 0) return false; //No finger down, nothing to raycast
+           if (CameraJoystick.Active) return false; //Dragging the camera joystick never moves the player
            bool hasHit = RaycastNavMesh(out target);
            
             if (Input.touchCount > 0 && (EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId)))

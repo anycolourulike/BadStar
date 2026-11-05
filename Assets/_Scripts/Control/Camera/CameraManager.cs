@@ -5,7 +5,10 @@ using Cinemachine;
 using Rambler.Control;
 
 //One camera that follows the active player and orbits 360 degrees around them.
-//Rotation is driven by the HUD (CameraRotateButton, CameraRecentreButton).
+//The HUD arrows (CameraRotateButton) rotate it; the centre joystick (CameraJoystick) slides it sideways across the map
+//at the same height, and a tap on the joystick brings it back to the active player.
+//Runs before the Cinemachine brain so the pivot has moved before the camera is placed this frame.
+[DefaultExecutionOrder(-100)]
 public class CameraManager : MonoBehaviour
 {
     public static CameraManager Instance { get; private set; }
@@ -23,9 +26,17 @@ public class CameraManager : MonoBehaviour
     [SerializeField] float rotateSpeed = 120f;  //Degrees per second while a rotate button is held
     [SerializeField] float smoothing = 10f;
 
+    [Header("Joystick pan")]
+    [SerializeField] float panSpeed = 30f;      //Metres per second at full joystick
+    [SerializeField] float maxPan = 80f;        //How far the view can slide away from the player
+
     float targetYaw;
     float currentYaw;
     float rotateInput; //-1 left, 0 none, 1 right
+    float panInput; //-1 left, 1 right (screen sideways)
+    Vector3 targetPan, currentPan; //World-space slide of the view away from the player, flat (y = 0)
+    Transform followTarget; //The player the camera is on
+    Transform pivot;        //What the camera actually follows and looks at: player + pan
     CinemachineTransposer transposer;
 
     public float Yaw => currentYaw;
@@ -34,7 +45,10 @@ public class CameraManager : MonoBehaviour
     {
         Instance = this;
         targetYaw = currentYaw = startYaw;
+        pivot = new GameObject("CameraPivot").transform;
+        if (activeCam != null && activeCam.Follow != null) followTarget = activeCam.Follow;
         SetUpFollowCam();
+        if (followTarget != null) UpdateFollow(followTarget);
     }
 
     public void OnEnable()
@@ -57,6 +71,15 @@ public class CameraManager : MonoBehaviour
         }
         currentYaw = Mathf.LerpAngle(currentYaw, targetYaw, smoothing * Time.unscaledDeltaTime);
         transposer.m_FollowOffset = OffsetForYaw(currentYaw);
+
+        if (panInput != 0f)
+        {
+            //Slide along the screen's sideways direction, kept flat so the height never changes
+            Vector3 right = Quaternion.Euler(0f, currentYaw, 0f) * Vector3.left;
+            targetPan = Vector3.ClampMagnitude(targetPan + right * (panInput * panSpeed * Time.unscaledDeltaTime), maxPan);
+        }
+        currentPan = Vector3.Lerp(currentPan, targetPan, smoothing * Time.unscaledDeltaTime);
+        if (followTarget != null) pivot.position = followTarget.position + currentPan;
     }
 
     //Swap the follow camera's body for a world-space transposer we can orbit
@@ -100,9 +123,11 @@ public class CameraManager : MonoBehaviour
 
     public void UpdateFollow(Transform newFollow)
     {
-        if (activeCam == null) return;
-        activeCam.Follow = newFollow;
-        activeCam.LookAt = newFollow;
+        if (activeCam == null || newFollow == null) return;
+        followTarget = newFollow;
+        pivot.position = followTarget.position + currentPan;
+        activeCam.Follow = pivot;
+        activeCam.LookAt = pivot;
         var pc = newFollow.GetComponent<PlayerController>();
         if (pc != null) pc.cineMachine = activeCam;
     }
@@ -113,9 +138,33 @@ public class CameraManager : MonoBehaviour
         rotateInput = Mathf.Clamp(direction, -1f, 1f);
     }
 
+    //Joystick input from the centre HUD button: slides the view sideways (-1 left .. 1 right)
+    public void SetPanInput(float input)
+    {
+        panInput = Mathf.Clamp(input, -1f, 1f);
+    }
+
     public void Rotate(float degrees)
     {
         targetYaw += degrees;
+    }
+
+    //Centre button tap: slide the view back onto whichever player is active (the heading is left to the arrows)
+    public void RecentreOnActivePlayer()
+    {
+        var selector = FindFirstObjectByType<PlayerSelector>();
+        if (selector != null && selector.activePlayer != null) activePlayer = selector.activePlayer;
+        if (activePlayer != null) UpdateFollow(activePlayer.transform);
+        if (activeCam != null)
+        {
+            //The follow camera wins again even if a trigger camera took over
+            foreach (CinemachineVirtualCamera VC in vCams)
+            {
+                if (VC != null && VC != activeCam) VC.Priority = 0;
+            }
+            activeCam.Priority = 2;
+        }
+        targetPan = Vector3.zero;
     }
 
     public void ResetRotation()
