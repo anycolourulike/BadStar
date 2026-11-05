@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 
 //HUD joystick on the centre camera button.
-//Drag left/right to slide the camera sideways across the map at the same height (the knob only slides sideways). A quick tap recentres the camera on the active player.
+//Drag to slide the camera across the map at the same height: left/right moves it sideways, up/down moves it up/down the screen. A quick tap recentres the camera on the active player.
 public class CameraJoystick : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
 {
     [SerializeField] RectTransform knob;          //Moves with the finger, springs back on release
@@ -63,13 +63,13 @@ public class CameraJoystick : MonoBehaviour, IPointerDownHandler, IDragHandler, 
         RectTransformUtility.ScreenPointToLocalPointInRectangle(rect, eventData.position, eventData.pressEventCamera, out local);
         maxMove = Mathf.Max(maxMove, (local - pressPos).magnitude);
 
-        //Horizontal offset from the joystick centre only; the knob slides left/right and never moves up/down
-        float x = Mathf.Clamp(local.x - rect.rect.center.x, -maxRadius, maxRadius);
-        if (knob != null) knob.anchoredPosition = knobHome + new Vector2(x, 0f);
+        //Offset from the joystick centre, clamped to the travel ring
+        Vector2 offset = Vector2.ClampMagnitude(local - rect.rect.center, maxRadius);
+        if (knob != null) knob.anchoredPosition = knobHome + offset;
 
-        float input = x / maxRadius;
-        float m = Mathf.Abs(input);
-        input = m < deadZone ? 0f : Mathf.Sign(input) * (m - deadZone) / (1f - deadZone); //Rescale so output starts at 0 just past the dead zone
+        Vector2 input = offset / maxRadius;
+        float m = input.magnitude;
+        input = m < deadZone ? Vector2.zero : input * ((m - deadZone) / (1f - deadZone) / m); //Rescale so output starts at 0 just past the dead zone
         if (CameraManager.Instance != null) CameraManager.Instance.SetPanInput(input);
     }
 
@@ -78,6 +78,6 @@ public class CameraJoystick : MonoBehaviour, IPointerDownHandler, IDragHandler, 
         pointerId = int.MinValue;
         Active = false;
         if (knob != null) knob.anchoredPosition = knobHome;
-        if (CameraManager.Instance != null) CameraManager.Instance.SetPanInput(0f);
+        if (CameraManager.Instance != null) CameraManager.Instance.SetPanInput(Vector2.zero);
     }
 }

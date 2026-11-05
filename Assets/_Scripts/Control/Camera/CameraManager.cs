@@ -5,7 +5,7 @@ using Cinemachine;
 using Rambler.Control;
 
 //One camera that follows the active player and orbits 360 degrees around them.
-//The HUD arrows (CameraRotateButton) rotate it; the centre joystick (CameraJoystick) slides it sideways across the map
+//The HUD arrows (CameraRotateButton) rotate it; the centre joystick (CameraJoystick) slides it across the map (sideways and up/down the screen)
 //at the same height, and a tap on the joystick brings it back to the active player.
 //Runs before the Cinemachine brain so the pivot has moved before the camera is placed this frame.
 [DefaultExecutionOrder(-100)]
@@ -33,7 +33,7 @@ public class CameraManager : MonoBehaviour
     float targetYaw;
     float currentYaw;
     float rotateInput; //-1 left, 0 none, 1 right
-    float panInput; //-1 left, 1 right (screen sideways)
+    Vector2 panInput; //x: screen sideways (-1 left .. 1 right), y: screen up/down (1 = up the screen, away from the camera)
     Vector3 targetPan, currentPan; //World-space slide of the view away from the player, flat (y = 0)
     Transform followTarget; //The player the camera is on
     Transform pivot;        //What the camera actually follows and looks at: player + pan
@@ -72,11 +72,14 @@ public class CameraManager : MonoBehaviour
         currentYaw = Mathf.LerpAngle(currentYaw, targetYaw, smoothing * Time.unscaledDeltaTime);
         transposer.m_FollowOffset = OffsetForYaw(currentYaw);
 
-        if (panInput != 0f)
+        if (panInput != Vector2.zero)
         {
-            //Slide along the screen's sideways direction, kept flat so the height never changes
-            Vector3 right = Quaternion.Euler(0f, currentYaw, 0f) * Vector3.left;
-            targetPan = Vector3.ClampMagnitude(targetPan + right * (panInput * panSpeed * Time.unscaledDeltaTime), maxPan);
+            //Slide along the screen's sideways and up/down directions, kept flat so the height never changes
+            Quaternion heading = Quaternion.Euler(0f, currentYaw, 0f);
+            Vector3 right = heading * Vector3.left;    //Screen right on the ground
+            Vector3 forward = heading * Vector3.back;  //Screen up on the ground (the way the camera faces)
+            Vector3 move = right * panInput.x + forward * panInput.y;
+            targetPan = Vector3.ClampMagnitude(targetPan + move * (panSpeed * Time.unscaledDeltaTime), maxPan);
         }
         currentPan = Vector3.Lerp(currentPan, targetPan, smoothing * Time.unscaledDeltaTime);
         if (followTarget != null) pivot.position = followTarget.position + currentPan;
@@ -138,10 +141,10 @@ public class CameraManager : MonoBehaviour
         rotateInput = Mathf.Clamp(direction, -1f, 1f);
     }
 
-    //Joystick input from the centre HUD button: slides the view sideways (-1 left .. 1 right)
-    public void SetPanInput(float input)
+    //Joystick input from the centre HUD button: x slides the view sideways, y slides it up/down the screen (each -1..1)
+    public void SetPanInput(Vector2 input)
     {
-        panInput = Mathf.Clamp(input, -1f, 1f);
+        panInput = Vector2.ClampMagnitude(input, 1f);
     }
 
     public void Rotate(float degrees)
