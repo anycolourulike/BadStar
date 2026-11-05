@@ -9,15 +9,13 @@ using Rambler.UI;
 using Rambler.Inventories;
 using Rambler.UI.Inventories;
 using System;
-using Rambler.Saving;
-using TMPro;
 
 //Track number of dead enemies
 //Track mission pick ups status
 //Track mission story with Level Manager
 namespace Rambler.Control
 {
-    public class PlayerSelector : MonoBehaviour, ISaveable
+    public class PlayerSelector : MonoBehaviour
     {
         public delegate void PlayerObjectChanged(GameObject newPlayer);
         public static event PlayerObjectChanged OnPlayerObjectChanged;
@@ -34,14 +32,12 @@ namespace Rambler.Control
 
         public ShowHideUI showHideUI;
         public List<GameObject> players = new();
-        [SerializeField] TextMeshProUGUI displayLives;
 
         [SerializeField] PlayerController activePlayerCon;
         [SerializeField] AIController companionAI;  
 
         public InventoryUI UiInventory;
         public Inventory inv;
-        public int lives;
 
         private void OnEnable()
         {
@@ -178,44 +174,11 @@ namespace Rambler.Control
             activePlayerCon.ToggleShields();
         }       
 
-        public void StartingLives()
-        {
-            //check if lives are infinite
-            lives = 5;
-            displayLives.text = lives.ToString();
-        }
-
-        public void LivesUpdate()
-        {
-            displayLives.text = lives.ToString();
-            //if infinite set UI to disabled
-        }
-
-        public void AddOneLife()
-        {
-            lives++;
-        }
-
         void PlayerDeath(GameObject player)
         {
             players.Remove(player);
             PlayersChanged?.Invoke();
-            if(players.Count == 0)
-            {
-                //Lose a life
-                //if (infiniteLives == true) return;
-                //lives--;
-                //LevelManager.Instance.lifeWasLost = true;
-                //displayLives.text = lives.ToString();
-                //SavingWrapper wrapper = FindObjectOfType<SavingWrapper>();
-                //healthPoints = new LazyValue<float>(GetInitialHealth);
-                //wrapper.Save();
-            }
-            else
-            {
-                var newCharacter = players[0];
-                ControlPlayer(newCharacter);
-            }     
+            if (players.Count > 0) ControlPlayer(players[0]);
         }
       
         void UpdateInventory()
@@ -224,21 +187,6 @@ namespace Rambler.Control
             UiInventory.playerInventory = inv;
             UiInventory.activePlayer = activePlayer;
             UiInventory.Redraw();
-        }
-
-        public object CaptureState()
-        {
-            //Debug.Log(this.gameObject.name + " " + HealthPoints.value);
-            Dictionary<string, object> data = new Dictionary<string, object>();           
-            data["lives"] = lives;            
-            return data;
-        }
-
-        public void RestoreState(object state)
-        {
-            Dictionary<string, object> data = (Dictionary<string, object>)state;
-            lives = (int)data["lives"]; //∞
-            LivesUpdate();
         }
     }
 }

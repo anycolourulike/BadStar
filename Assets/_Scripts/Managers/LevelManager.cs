@@ -142,14 +142,6 @@ public class LevelManager : MonoBehaviour, ISaveable
         
         if (loadSave) StartCoroutine(nameof(LoadSavedFile));
         StartCoroutine(nameof(SetUpLevel));
-        if (sceneToLoad == crashSite)
-        {
-            playerSelector.StartingLives();
-        }
-        if (sceneToLoad == mine)
-        {
-            playerSelector.AddOneLife();
-        }
         Time.timeScale = 1;
         DestOutput();
     } 
@@ -172,7 +164,6 @@ public class LevelManager : MonoBehaviour, ISaveable
     void FindPlayerSelector()
     {
         var fader = sceneRefs.fader;
-        //Store on the field; StartingLives/AddOneLife use it after this returns
         playerSelector = sceneRefs.playerSelector;
         activePlayer = playerSelector.activePlayer;
         if (activePlayer != null)
