@@ -8,6 +8,7 @@
 
 # ...except these
 !/.gitignore
+!/.gitattributes
 !/backup.sh
 !/CLAUDE.md
 !/Assets/
