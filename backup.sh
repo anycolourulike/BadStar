@@ -46,6 +46,7 @@ mirror() { # robocopy exit codes 0-7 are success
 }
 mirror "D:\\MobileProjects\\BadStar" "F:\\BadStarBackup\\unity" /XD Library Temp Logs obj Build Builds UserSettings .vs .git .plastic
 mirror "D:\\BadStar" "F:\\BadStarBackup\\blender"
+mirror "D:\\Keys" "F:\\BadStarBackup\\keys"   # Android signing key: never in git or Plastic, so RANDY holds the offline copy
 date '+%Y-%m-%d %H:%M' > "$DEST/last_backup.txt"
 
 [ $fail -eq 0 ] && echo "== backup complete" || echo "== backup finished WITH ERRORS (see above)"
