@@ -39,10 +39,14 @@ namespace Rambler.Combat
         public CombatTarget otherCombatTarget;
         public CombatTarget CombatTarget { get { return otherCombatTarget; } set { otherCombatTarget = value; } }
         public bool canAttack = false;
+        [Tooltip("Keep attacking the current target after the finger lifts, until it is destroyed or the next tap (set when the player taps a target or uses the door panel's Shoot button).")]
+        public bool HoldTarget;
+        Rambler.Ship.ShipDoorDamage attackDoor;
         PlayerController playerController;
         Vector3 hitPointVector;
         GameObject weaponRef;
         Health targetHealth;
+        Rambler.Ship.ShipDoorDamage targetDoor;
         AIController aiCon;
         Inventory inv;
 
@@ -50,16 +54,21 @@ namespace Rambler.Combat
         FieldOfView FOV;
         Animator anim;
         Mover mover;
+        CoverUser coverUser;
+        EnemyAI enemyAI;
+
+        //Distance the current weapon can hit from (0 if none yet)
+        public float AttackRange => activeWeapon != null ? activeWeapon.GetRange() : 0f;
 
         void OnEnable()
         {
-            Health.targetDeath += CancelTarget;
+            Health.targetDeath += OnTargetDeath;
             Health.playerDeath += StopMovement;
         }
 
         void OnDisable()
         {
-            Health.targetDeath -= CancelTarget;
+            Health.targetDeath -= OnTargetDeath;
             Health.playerDeath -= StopMovement;
         }
 
@@ -74,6 +83,8 @@ namespace Rambler.Combat
             rigController = GetComponent<Fighter>().rigController;
             weaponIk = GetComponent<WeaponIK>();
             anim = GetComponent<Animator>();
+            coverUser = GetComponent<CoverUser>();
+            enemyAI = GetComponent<EnemyAI>();
             if (weaponConfig == null)
             {
                 EquipWeapon(lastWeaponUsed);
@@ -99,6 +110,9 @@ namespace Rambler.Combat
             if (enemyPos == null) { return; }
             if (this.gameObject.CompareTag("Enemy")) { enemyPos = TargetCap.transform; }
             if (enemyPos.CompareTag("AIConversant")) return;
+            if (attackDoor != null && attackDoor.State == Rambler.Ship.ShipDoorDamage.DamageState.Destroyed) { CancelTarget(); return; } //Nothing left to hit
+            if (HoldTarget && IsTargetDead()) { CancelTarget(); return; }
+            if (coverUser != null && coverUser.IsMovingToCover) return; //Let it reach cover before chasing or shooting
             if (!GetIsInRange())
             {
                 mover.MoveTo(enemyPos.transform.position, 1f);
@@ -124,7 +138,7 @@ namespace Rambler.Combat
                         //Play Out Of Ammo Text & Image
                         return;
                 }
-                if (FOV.canSeePlayer == false) return;
+                if (enemyAI != null && enemyAI.isActiveAndEnabled ? !enemyAI.TargetVisible : FOV != null && FOV.canSeePlayer == false) return;
             }
 
             mover.FaceFlat(enemyPos.transform.position);
@@ -267,6 +281,7 @@ namespace Rambler.Combat
             if (combatTarget != null)
             {
                 enemyPos = combatTarget.GetComponent<Transform>();
+                attackDoor = combatTarget.GetComponentInParent<Rambler.Ship.ShipDoorDamage>();
             }
         }
 
@@ -275,6 +290,22 @@ namespace Rambler.Combat
             CombatTarget = null;
             TargetCap = null;
             enemyPos = null;
+            attackDoor = null;
+            HoldTarget = false;
+        }
+
+        //Someone died: a held target is kept unless it was the one that died
+        void OnTargetDeath()
+        {
+            if (HoldTarget && !IsTargetDead()) return;
+            CancelTarget();
+        }
+
+        bool IsTargetDead()
+        {
+            if (enemyPos == null) return true;
+            var health = enemyPos.GetComponentInParent<Health>();
+            return health != null && health.IsDead();
         }
 
         public void AssignAmmo()
@@ -396,14 +427,16 @@ namespace Rambler.Combat
         {
             if (target == null) { return; }
             targetHealth = target.GetComponent<Health>();
+            targetDoor = target.GetComponentInParent<Rambler.Ship.ShipDoorDamage>(); //Doors can be beaten down too
             anim.SetTrigger("meleeAttack");
         }
 
         void MeleeEvent()
         {
-            Instantiate(punchImpact, handTransform.position, handTransform.rotation);
+            if (punchImpact != null) Instantiate(punchImpact, handTransform.position, handTransform.rotation); //The effect is optional; the hit must still land
             AudioManager.PlayHumanSound(AudioManager.HumanSound.Hit2, this.transform.position);
-            targetHealth.TakeDamage(50f);
+            if (targetHealth != null) targetHealth.TakeDamage(50f);
+            else if (targetDoor != null) targetDoor.TakeDamage(50f);
         }
 
         void EMPAttack()

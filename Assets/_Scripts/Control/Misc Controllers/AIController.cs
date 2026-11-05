@@ -25,6 +25,7 @@ namespace Rambler.Control
         [SerializeField] Mover mover;
         [SerializeField] FieldOfView FOV;
         public Transform patrolToTarget;
+        public PatrolPath PatrolRoute => patrolPath;
         [Range(0, 1)]
         [SerializeField] float patrolSpeedFraction = 0.2f;
         float timeSinceArrivedAtWaypoint

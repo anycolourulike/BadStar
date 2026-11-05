@@ -43,6 +43,8 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
         public static event CompanionDied companionDeath;
         public delegate void AIHit();
         public static event AIHit aIHit;
+        //This character took a hit (amount after cover)
+        public event Action<float> Damaged;
         UnityEngine.AI.NavMeshAgent agent;
         public float healthPts;
         bool isActivePlayer;
@@ -97,9 +99,15 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
             return isDead;
         } 
 
-        public void TakeDamage(float damage)
-        {  
+        public void TakeDamage(float damage) => TakeDamage(damage, false);
+
+        //ignoreCover: blasts (grenades) hurt just as much in cover
+        public void TakeDamage(float damage, bool ignoreCover)
+        {
             if (isDead == true) return;
+            var cover = GetComponent<CoverUser>();
+            if (cover != null && !ignoreCover) damage *= cover.DamageMultiplier; //Shots that still land on someone in cover do less
+            Damaged?.Invoke(damage);
             if (this.gameObject.CompareTag("Enemy") || (this.gameObject.CompareTag("Companion")))
             {
                 aIHit?.Invoke();
@@ -172,8 +180,9 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
             var rigBuilder = GetComponent<RigBuilder>();
             if (rigBuilder != null) rigBuilder.enabled = false;
             var capCol = GetComponent<CapsuleCollider>();
-            capCol.enabled = false;
-            fighter.enabled = false;
+            if (capCol != null) capCol.enabled = false;
+            if (fighter == null) fighter = GetComponent<Fighter>(); //Can die before its Start has run
+            if (fighter != null) fighter.enabled = false;
             if (activateBtn != null)
             {
                 activateBtn.enabled = false;
@@ -237,7 +246,7 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
                 case "Enemy":
                     //Debug.Log("Object is an Enemy.");
                     var aiCon = GetComponent<AIController>();
-                    aiCon.isDead = true;
+                    if (aiCon != null) aiCon.isDead = true; //Not every enemy runs the old AI
                     Transform selectionUI = transform.Find("SelectionIcon");
                     if (selectionUI != null) selectionUI.gameObject.SetActive(false);
                     break;

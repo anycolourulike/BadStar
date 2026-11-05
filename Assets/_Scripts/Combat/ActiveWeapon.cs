@@ -155,6 +155,13 @@ namespace Rambler.Combat
             UpdateTotalAmmoDisplay();
         }
        
+        //NPCs: a full magazine from their unlimited reserve, whichever weapon prefab they carry
+        public void RefillMagazine()
+        {
+            FullMag();
+            isAmmo = true;
+        }
+
        public void LaunchProjectile(Transform muzzleTransform, Vector3 target)
         {     
             if((curClip > 0)  && !reloading)
@@ -220,7 +227,7 @@ namespace Rambler.Combat
 
         void UpdateTotalAmmoDisplay() 
         {
-            totalAmmoDisplay.text = (totalAmmo.ToString());
+            if (totalAmmoDisplay != null) totalAmmoDisplay.text = (totalAmmo.ToString()); //NPCs carrying a player weapon have no HUD
         } 
 
         void UpdateClipDisplay() 

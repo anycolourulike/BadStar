@@ -102,9 +102,9 @@ namespace Rambler.Movement
             rigWeaponEquipped = false;
         } 
 
-        public void RigWeightToZero() 
+        public void RigWeightToZero()
         {
-            mainRig.weight = 0;
+            if (mainRig != null) mainRig.weight = 0;
             RigWeaponUnequipped();
         }   
 

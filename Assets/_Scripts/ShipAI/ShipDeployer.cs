@@ -174,6 +174,8 @@ namespace Rambler.Ship
         {
             yield return null; //Let the unit's Awake/Start settle its state machine first
             if (unit == null || ship.LastKnownRoom == null && ship.LastKnownPosition == Vector3.zero) yield break;
+            var brain = unit.GetComponent<Rambler.Control.EnemyAI>();
+            if (brain != null && brain.isActiveAndEnabled) { brain.HearOf(ship.LastKnownPosition); yield break; } //It searches from there
             var mover = unit.GetComponent<Mover>();
             if (mover != null) mover.StartMoveAction(ship.LastKnownPosition, 1f);
         }

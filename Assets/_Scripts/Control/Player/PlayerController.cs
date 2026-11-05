@@ -165,7 +165,23 @@ namespace Rambler.Control
             {
                 if (CameraJoystick.Active) return true; //Dragging the camera joystick never shoots, even when the finger strays off it
                 Touch touch = Input.GetTouch(0);
+                //Taps on the HUD (e.g. the door panel's buttons) never reach the world behind it
+                if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(touch.fingerId)) return true;
                 Ray ray = Camera.main.ScreenPointToRay(touch.position);
+
+                //Tapping a door shows its info panel instead of shooting it (the panel has a Shoot button)
+                var tappedDoor = Rambler.Ship.DoorInfoPanel.Instance != null ? Rambler.Ship.DoorInfoPanel.Pick(ray) : null;
+                if (tappedDoor != null)
+                {
+                    if (touch.phase == TouchPhase.Began) Rambler.Ship.DoorInfoPanel.Instance.Show(tappedDoor);
+                    return true;
+                }
+                //A tap anywhere else in the world closes it
+                if (touch.phase == TouchPhase.Began && Rambler.Ship.DoorInfoPanel.Instance != null && Rambler.Ship.DoorInfoPanel.Instance.IsOpen)
+                {
+                    Rambler.Ship.DoorInfoPanel.Instance.Hide();
+                }
+
                 RaycastHit hit;
                 if (Physics.Raycast(ray, out hit, Mathf.Infinity))
                 {
@@ -193,6 +209,7 @@ namespace Rambler.Control
                     }
                     
                     fighter.Attack(otherCombatTarget.gameObject);
+                    fighter.HoldTarget = true; //Keep firing after the finger lifts, until the target is destroyed or the next tap
 
                     if ((objTarget.tag == "Enemy") || (!this.CompareTag("Dead")))
                     {
@@ -210,7 +227,7 @@ namespace Rambler.Control
         bool InteractWithMovement()
         {          
            if(isDead == true) return false;
-           fighter.CancelTarget();
+           if (!fighter.HoldTarget || Input.touchCount > 0) fighter.CancelTarget(); //A held target (door panel) lasts until the next tap
            if (Input.touchCount == 0) return false; //No finger down, nothing to raycast
            if (CameraJoystick.Active) return false; //Dragging the camera joystick never moves the player
            bool hasHit = RaycastNavMesh(out target);

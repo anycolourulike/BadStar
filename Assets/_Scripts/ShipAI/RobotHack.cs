@@ -33,7 +33,9 @@ namespace Rambler.Ship
                 return false;
             }
 
-            //Stop fighting the player and leave the enemy wave
+            //Stop fighting the player and leave the enemy wave; the companion AI takes over from the enemy brain
+            var brain = robot.GetComponent<EnemyAI>();
+            if (brain != null) brain.enabled = false;
             var fighter = robot.GetComponent<Fighter>();
             if (fighter != null) fighter.CancelTarget();
             var spawner = UnityEngine.Object.FindObjectOfType<EnemySpawner>();
