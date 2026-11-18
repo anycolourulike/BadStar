@@ -79,6 +79,7 @@ namespace Rambler.Combat
         Mover mover;
         CoverUser coverUser;
         EnemyAI enemyAI;
+        CompanionBrain companionBrain;
 
         //Distance the current weapon can hit from (0 if none yet)
         public float AttackRange => activeWeapon != null ? activeWeapon.GetRange() : 0f;
@@ -108,6 +109,7 @@ namespace Rambler.Combat
             anim = GetComponent<Animator>();
             coverUser = GetComponent<CoverUser>();
             enemyAI = GetComponent<EnemyAI>();
+            companionBrain = GetComponent<CompanionBrain>();
             if (weaponConfig == null)
             {
                 //Nothing set: the last weapon used, or bare hands
@@ -162,7 +164,12 @@ namespace Rambler.Combat
                         //Play Out Of Ammo Text & Image
                         return;
                 }
-                if (enemyAI != null && enemyAI.isActiveAndEnabled ? !enemyAI.TargetVisible : FOV != null && FOV.canSeePlayer == false) return;
+                //Hold fire without a clear view; whichever brain is running knows
+                bool blind;
+                if (enemyAI != null && enemyAI.isActiveAndEnabled) blind = !enemyAI.TargetVisible;
+                else if (companionBrain != null && companionBrain.isActiveAndEnabled) blind = !companionBrain.TargetVisible;
+                else blind = FOV != null && FOV.canSeePlayer == false;
+                if (blind) return;
             }
 
             mover.FaceFlat(enemyPos.transform.position);

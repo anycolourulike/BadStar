@@ -20,7 +20,7 @@ namespace Rambler.Ship
             var identity = character.GetComponent<CharacterIdentity>();
             var health = character.GetComponent<Health>();
             //Only units on the standard AI can switch sides; suicide drones (DroneCon) would still explode on the player
-            if (character.GetComponent<AIController>() == null) return false;
+            if (character.GetComponent<AIController>() == null && character.GetComponent<CompanionBrain>() == null) return false;
             return identity != null && identity.CanBeHacked && health != null && !health.IsDead();
         }
 
@@ -53,9 +53,16 @@ namespace Rambler.Ship
 
             AddControlParts(robot, selector);
 
-            //Restart the AI so it picks up the Companion states and targets
+            //Robots set up with the companion behaviour tree switch to it; older ones restart the AIController
+            //so it picks up the Companion states and targets
+            var companionBrain = robot.GetComponent<CompanionBrain>();
             var ai = robot.GetComponent<AIController>();
-            if (ai != null)
+            if (companionBrain != null)
+            {
+                if (ai != null) ai.enabled = false;
+                Restart(companionBrain);
+            }
+            else if (ai != null)
             {
                 Restart(ai);
                 ai.RefreshTargets();

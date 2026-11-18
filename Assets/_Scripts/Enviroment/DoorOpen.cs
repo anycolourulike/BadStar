@@ -82,8 +82,12 @@ public class DoorOpen : MonoBehaviour
     {
         var playerCore = GameObject.Find("PlayerCore");
         var playerSelector = playerCore.GetComponent<PlayerSelector>();
+        if (playerSelector.companion == null || targetWaypoint == null) return;
+        //Companions on the behaviour tree follow the player through on their own
+        var brain = playerSelector.companion.GetComponent<CompanionBrain>();
+        if (brain != null && brain.isActiveAndEnabled) return;
         aIController = playerSelector.companion.GetComponent<AIController>();
-        aIController.UpdatePatrolToTarget(targetWaypoint);
+        if (aIController != null) aIController.UpdatePatrolToTarget(targetWaypoint);
     }
 
     void OpenDoor()

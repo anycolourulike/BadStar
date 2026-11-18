@@ -74,26 +74,37 @@ namespace Rambler.Control
 
             activePlayer.tag = "Player";
             var activePlayerAI = activePlayer.GetComponent<AIController>();
-            activePlayerAI.enabled = false;
+            if (activePlayerAI != null) activePlayerAI.enabled = false;
 
             activePlayerCon = activePlayer.GetComponent<PlayerController>();
             activePlayerCon.enabled = true;
-            
-            UpdatePlayerObject(activePlayer);
+
             foreach(GameObject character in players)
             {
-                if(character != player)
+                if(character != player && character != null)
                 {
                     companion = character;
                     companion.tag = "Companion";
-                    var companionAI = companion.GetComponent<AIController>();
-                    companionAI.enabled = true;
-                    companionAI.IsPatrolling();
+                    //Companions on the behaviour tree (CompanionBrain) start it themselves from the event below;
+                    //the rest still run the old AIController
+                    var brain = companion.GetComponent<CompanionBrain>();
+                    if (brain != null) brain.enabled = true;
+                    else
+                    {
+                        var companionAI = companion.GetComponent<AIController>();
+                        if (companionAI != null)
+                        {
+                            companionAI.enabled = true;
+                            companionAI.IsPatrolling();
+                        }
+                    }
                     var companionPlayerCon = companion.GetComponent<PlayerController>();
-                    companionPlayerCon.enabled = false;                    
+                    if (companionPlayerCon != null) companionPlayerCon.enabled = false;
                 }
-            }            
-        } 
+            }
+            //After the tags are set, so listeners see who is Player and who is Companion
+            UpdatePlayerObject(activePlayer);
+        }
 
         public bool IsFull => players.Count >= MaxPlayers;
 
@@ -176,9 +187,11 @@ namespace Rambler.Control
 
         void PlayerDeath(GameObject player)
         {
+            bool wasActive = player == activePlayer;
             players.Remove(player);
             PlayersChanged?.Invoke();
-            if (players.Count > 0) ControlPlayer(players[0]);
+            //Only take the player off the character they're using if that one died
+            if (wasActive && players.Count > 0) ControlPlayer(players[0]);
         }
       
         void UpdateInventory()
