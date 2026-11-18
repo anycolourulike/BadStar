@@ -224,8 +224,8 @@ namespace Rambler.Control
         public void TargetHealthCheck()
         {
             if (closestTarget == null) return;
-            var targetIsDead = closestTarget.GetComponent<Health>().isDead;
-            if (targetIsDead == true) { UpdateTarget(); };
+            var targetHealth = closestTarget.GetComponent<Health>();
+            if (targetHealth != null && targetHealth.isDead) { UpdateTarget(); };
         }
 
         public void AssignTarget()
@@ -244,8 +244,8 @@ namespace Rambler.Control
         public void AttackBehaviour()
         {
             if (closestTarget == null) { return; }
-            var targetIsDead = closestTarget.GetComponent<Health>().isDead;
-            if (targetIsDead == true) { return; }
+            var targetHealth = closestTarget.GetComponent<Health>();
+            if (targetHealth != null && targetHealth.isDead) { return; }
             fighter.Attack(combatTarget: closestTarget);
         }
 
@@ -399,6 +399,9 @@ namespace Rambler.Control
             closestTarget = null;
             foreach (GameObject target in targetList)
             {
+                if (target == null) continue; //Destroyed since the list was built
+                var targetHealth = target.GetComponent<Health>();
+                if (targetHealth != null && targetHealth.isDead) continue;
                 float distanceToTarget = (target.transform.position - this.transform.position).sqrMagnitude;
                 if (distanceToTarget < distToClosestTarget)
                 {

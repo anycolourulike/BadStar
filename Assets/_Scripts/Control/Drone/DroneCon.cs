@@ -93,9 +93,9 @@ namespace Rambler.Control
         {
             stateMachine.Tick();
 
-            if(FOV.canSeePlayer == true)
+            if(FOV != null && FOV.canSeePlayer == true)
             {
-                light.color = Color.red;
+                if (light != null) light.color = Color.red;
                 NotPatrolling();
                 AttackingTrue();
             }
@@ -142,7 +142,10 @@ namespace Rambler.Control
         public void AttackTarget()
         {
             FacePlayer();
-            mover.MoveTo(otherCombatTarget.transform.position, 25f);
+            //Its target may have died or never been picked: go for the player instead
+            Transform goal = otherCombatTarget != null ? otherCombatTarget.transform : (player != null ? player.transform : null);
+            if (goal == null) return;
+            mover.MoveTo(goal.position, 25f);
             if (targetSFXPlayed == false)
             {
                 targetSFXPlayed = true;
@@ -177,8 +180,8 @@ namespace Rambler.Control
         public void TargetHealthCheck()
         {
             if (closestTarget == null) return;
-            var targetIsDead = closestTarget.GetComponent<Health>().isDead;
-            if (targetIsDead == true) { UpdateTarget(); };
+            var targetHealth = closestTarget.GetComponent<Health>();
+            if (targetHealth != null && targetHealth.isDead) { UpdateTarget(); };
         }
 
         void UpdateTarget()
@@ -196,7 +199,15 @@ namespace Rambler.Control
 
         public void AssignTarget()
         {
-            otherCombatTarget = FOV.targetObjs[0].GetComponent<CombatTarget>();
+            if (FOV == null) return;
+            foreach (var seen in FOV.targetObjs)
+            {
+                if (seen == null) continue;
+                var seenTarget = seen.GetComponent<CombatTarget>();
+                if (seenTarget == null) continue;
+                otherCombatTarget = seenTarget;
+                return;
+            }
         }
 
         void AssignTargetList()
@@ -210,6 +221,7 @@ namespace Rambler.Control
             closestTarget = null;
             foreach (GameObject target in targetList)
             {
+                if (target == null) continue;
                 float distanceToTarget = (target.transform.position - this.transform.position).sqrMagnitude;
                 if (distanceToTarget < distToClosestTarget)
                 {
