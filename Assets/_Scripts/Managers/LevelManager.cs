@@ -21,6 +21,11 @@ using Rambler.UI;
 public class LevelManager : MonoBehaviour, ISaveable
 {
     public static LevelManager Instance { set; get; }
+    //True once a level's save is restored and the player placed; false from the start of a level change.
+    //Things that run at level start and depend on saved state (e.g. ComicTrigger) wait for this.
+    public static bool LevelReady { get; private set; }
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics() => LevelReady = false; //Editor play mode can skip the domain reload
     // --- SCENE TRACKING ---
     // This stores the handle for the scene currently active in the game.
     // We use this to properly release memory when moving to a new area.
@@ -82,6 +87,7 @@ public class LevelManager : MonoBehaviour, ISaveable
 
     public IEnumerator LoadLoading()
     {
+       LevelReady = false;
        FindAssetPath();
        yield return new WaitForSecondsRealtime(0.3f); //Delay to allow loading of next scenes assets
 
@@ -219,6 +225,7 @@ public class LevelManager : MonoBehaviour, ISaveable
 
         if (loadSave) LoadSavedFile();
         bool arrivedByPortal = PlaceAtDestination();
+        LevelReady = true;
 
         if (sceneRefs != null && sceneRefs.fader != null) sceneRefs.fader.FadeToClear(2f);
 
