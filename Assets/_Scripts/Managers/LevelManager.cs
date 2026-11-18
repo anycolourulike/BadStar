@@ -231,26 +231,9 @@ public class LevelManager : MonoBehaviour, ISaveable
 
         while (Time.time < settleUntil) yield return null;
 
-        if (arrivedByPortal && enemySpawner != null)
-        {
-            Debug.Log("DestinationCheckTrue");
-            if (enemySpawner.EnemyCheck() == true)
-            {
-                enemySpawner.SetPortalFXInactive();
-                if (enemySpawner.endLevelTxt != null)
-                {
-                    enemySpawner.endLevelTxt.SetActive(false);
-                }
-            }
-            else
-            {
-                enemySpawner.SetPortalsActive();
-            }
-        }
-        else
-        {
-            Debug.Log("destinationCheckFalse");
-        }
+        //Every level start, however the player got here (portal, continue, playing the scene directly)
+        if (!arrivedByPortal) Debug.Log("[LevelManager] No portal matched " + destinationID + "; player left where they are");
+        if (enemySpawner != null) enemySpawner.BeginLevel();
 
         dialogueObj = GameObject.Find(name: "/PlayerCore/HUD/Dialogue");
         if (dialogueObj == null) yield break; //Level was left before setup finished

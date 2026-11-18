@@ -1,181 +1,139 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
-using Rambler.Control;
+using UnityEngine.SceneManagement;
 using Rambler.Attributes;
-using System;
-using Rambler.SceneManagement;
-using System.Linq;
 
 namespace Rambler.Core
 {
-    //Reduce amount of loops in SecTeamCount, same action happens twice
-    //Reduce DisableTeams invoke time in EnemyCheck
-    //Test delay on Disable Team logic
+    //Runs a level's enemy waves. Every object tagged "SecTeam" is a wave and its children tagged "Enemy"
+    //are the wave's enemies. Waves come in Hierarchy order (top first), one at a time. When the last
+    //wave is dead the portals switch on and the "Proceed To Next Area" pop-up shows.
+    //Leave every wave active in the scene so the save system can restore its enemies; BeginLevel
+    //switches the later ones off once the save has loaded.
     public class EnemySpawner : MonoBehaviour
     {
-        public int deadEnemyCount = 0;       //number of total dead enemies
-        public int nextWaveCount;            //count number of enemies when secTeamActivated and assign
+        const string WaveTag = "SecTeam";
+        const string PopUpPath = "/PlayerCore/HUD/PopUp";
+
+        [Header("Read only (for debugging)")]
+        public int deadEnemyCount;   //Enemies killed in the current wave
+        public int nextWaveCount;    //Enemies in the current wave, including ones that joined mid-wave
         public GameObject activeSecTeam;
         public GameObject endLevelTxt;
-        public bool levelLoaded = false;
-        public bool nextTeam = false;
-      
-        public List<GameObject> portals 
-            = new List<GameObject>();
-        public List<GameObject> secTeam
-            = new List<GameObject>();
-        public List<GameObject> enemiesList
-            = new List<GameObject>();
-       
+        public bool levelLoaded;
+        public bool levelCleared;
+
+        public List<GameObject> portals = new List<GameObject>();
+        public List<GameObject> secTeam = new List<GameObject>();      //Waves still to come, in order
+        public List<GameObject> enemiesList = new List<GameObject>();  //Living enemies in the current wave
+
+        bool hadWaves;
+
         public void FindPopUp()
         {
-            var HUD = GameObject.Find("/PlayerCore/HUD/");
-            endLevelTxt = HUD.transform.GetChild(2).gameObject;
+            if (endLevelTxt != null) return;
+            endLevelTxt = GameObject.Find(PopUpPath);
+            if (endLevelTxt != null) return;
+            //Find skips inactive objects, and the pop-up is saved switched off
+            var hud = GameObject.Find("/PlayerCore/HUD");
+            var popUp = hud != null ? hud.transform.Find("PopUp") : null;
+            if (popUp != null) endLevelTxt = popUp.gameObject;
+            else Debug.LogWarning("[EnemySpawner] No PopUp under PlayerCore/HUD; the level-cleared text won't show");
+        }
+
+        //Called by LevelManager on every level start, after the save has loaded
+        public void BeginLevel()
+        {
+            FindPopUp();
+            if (endLevelTxt != null) endLevelTxt.SetActive(false);
+
+            deadEnemyCount = 0;
+            nextWaveCount = 0;
+            enemiesList.Clear();
+            activeSecTeam = null;
+            levelCleared = false;
+
+            secTeam = FindWaves();
+            hadWaves = secTeam.Count > 0;
+            //Later waves off straight away, so they can't fight or be seen before their turn
+            for (int i = 1; i < secTeam.Count; i++) secTeam[i].SetActive(false);
+
+            StartNextWave();
+            levelLoaded = true;
+
+            if (activeSecTeam != null)
+            {
+                HidePortals();
+            }
+            else
+            {
+                //Nothing to fight: no waves, or they were all beaten before this save. Open up quietly.
+                levelCleared = true;
+                ShowPortals();
+            }
         }
 
         void Update()
         {
-            if (levelLoaded == true)
+            if (!levelLoaded || levelCleared) return;
+
+            //Enemies destroyed some other way (or unloaded with their area) no longer count
+            enemiesList.RemoveAll(e => e == null);
+            if (enemiesList.Count > 0) return;
+
+            EndActiveWave();
+            StartNextWave();
+            if (activeSecTeam == null) LevelCleared();
+        }
+
+        void LevelCleared()
+        {
+            levelCleared = true;
+            ShowPortals();
+            if (hadWaves && endLevelTxt != null) endLevelTxt.SetActive(true);
+        }
+
+        //Makes the next wave that still has living enemies the active one. Leaves activeSecTeam null if none is left.
+        void StartNextWave()
+        {
+            //Waves in areas that streamed in after the level started join the queue in Hierarchy order
+            foreach (var wave in FindWaves())
             {
-                if (deadEnemyCount == nextWaveCount)
+                if (secTeam.Contains(wave)) continue;
+                secTeam.Add(wave);
+                wave.SetActive(false);
+            }
+            secTeam.RemoveAll(w => w == null);
+            secTeam.Sort(CompareHierarchyOrder);
+
+            while (secTeam.Count > 0)
+            {
+                var wave = secTeam[0];
+                wave.SetActive(true);
+                var enemies = LivingEnemiesIn(wave);
+                if (enemies.Count == 0)
                 {
-                    if (nextTeam == false)
-                    {
-                        Debug.Log("5" + " " + "deadEnemy==nextWaveCount");
-                        deadEnemyCount = 0;
-                        nextWaveCount = 0;
-                        secTeam.Remove(activeSecTeam);
-                        Destroy(activeSecTeam);
-                        activeSecTeam = null;
-                        ActivateNextSecTeam();
-                        nextTeam = true;
-                    }
+                    //Beaten before this save, or set up with no enemies
+                    secTeam.RemoveAt(0);
+                    Destroy(wave);
+                    continue;
                 }
-                if ((secTeam.Count == 0) && (enemiesList.Count == 0))
-                {
-                    SetPortalsActive();
-                    endLevelTxt.SetActive(true);
-                }
-            }
-        }
 
-        public void SetPortalFXInactive()
-        {
-            portals.Clear();
-            GameObject[] taggedPortals = GameObject.FindGameObjectsWithTag("Portal");
-            foreach(GameObject obj in taggedPortals)
-            {
-                portals.Add(obj);
-                foreach( GameObject taggedObj in portals)
-                {
-                    taggedObj.SetActive(false);
-                }
-            }
-        }
-        
-        public void SetPortalsActive()
-        {
-            if (endLevelTxt != null)
-            {
-                endLevelTxt.SetActive(true);
-                SetFXActive();
-            }
-        }
-
-        void SetFXActive()
-        {
-            foreach (GameObject taggedobj in portals)
-            {
-                if (taggedobj != null)
-                {
-                    taggedobj.SetActive(true);
-                }
-            }
-        }
-        
-        //Runs first called by levelManager.levelload and populates all lists 
-        public bool EnemyCheck()
-        {
-            Debug.Log("1" + " " + "EnemyCheck");
-            deadEnemyCount = 0;
-            nextWaveCount = 0;
-            // Clear the list of secTeam if previously populated
-            secTeam.Clear();
-
-            // Find all gameObjects with the tag "SecTeam" and add them to the list secTeam
-            GameObject[] secTeamObjects = GameObject.FindGameObjectsWithTag("SecTeam");
-            foreach (GameObject secTeamObj in secTeamObjects)
-            {
-                secTeam.Add(secTeamObj);
-                activeSecTeam = secTeam.First();
-            }
-
-            Invoke("DisableTeams", 1f);
-
-            SecTeamCount(activeSecTeam, secTeam);
-            // Return true if there are any enemies, returns false otherwise
-            return (enemiesList.Count > 0);
-        }
-
-        // Finds all child Objects of activeSecTeam with tag "Enemy".
-        // If none it disables game object assigned to activeSecTeam & sets it to null
-        // Finally it assigns a value to nextWaveCount
-        void SecTeamCount(GameObject activeSecTeam, List<GameObject> secTeam)
-        {
-            Debug.Log("3" + " " + "CountEnemies");
-            enemiesList.Clear();
-            if (CountEnemiesInChildren(activeSecTeam) == 0)
-            {
+                activeSecTeam = wave;
+                enemiesList.AddRange(enemies);
                 deadEnemyCount = 0;
-                nextWaveCount = 0;
+                nextWaveCount = enemiesList.Count;
                 return;
             }
-
-            // Find all children of activeSecTeam with tag "Enemy"
-            Transform[] enemies = activeSecTeam.GetComponentsInChildren<Transform>()
-                .Where(child => child.CompareTag("Enemy"))
-                .ToArray();
-
-            //If there are no enemies found
-            if (enemies.Length == 0)
-            {
-                // Disable activeSecTeam
-                activeSecTeam.SetActive(false);
-                secTeam.Remove(activeSecTeam);
-                Destroy(activeSecTeam);
-                activeSecTeam = null;
-            }
-            else
-            {
-                foreach(Transform transform in enemies)
-                {
-                    enemiesList.Add(transform.gameObject);
-                }
-                nextWaveCount += enemies.Length;
-            }
-           
-            levelLoaded = true;
-            nextTeam = false;
+            activeSecTeam = null;
         }
 
-        //disables all but 1 SecTeam
-        void ActivateNextSecTeam()
+        void EndActiveWave()
         {
-            Debug.Log("4" + " " + "ActivateNextSecTeam");
-            if (secTeam.Count > 0)
-            {
-                GameObject subsequentTeam = secTeam.First();
-                subsequentTeam.SetActive(true);
-                activeSecTeam = subsequentTeam;
-                if (subsequentTeam != null)
-                {
-                    SecTeamCount(subsequentTeam, secTeam);
-                }
-            }
-
-            Invoke("DisableTeams", .3f);
-            
+            if (activeSecTeam == null) return;
+            secTeam.Remove(activeSecTeam);
+            Destroy(activeSecTeam);
+            activeSecTeam = null;
         }
 
         //Adds an enemy that arrived mid-level (e.g. deployed by the ship) to the current wave,
@@ -187,47 +145,82 @@ namespace Rambler.Core
             nextWaveCount++;
         }
 
-        //Removes Enemy and checks parent object if empty
+        //An enemy died or left the enemy side (hacked). Unparented so its body survives the wave being cleared up.
         public void RemoveEnemy(GameObject enemyToRemove)
         {
-            Debug.Log("2" + " " + "RemoveEnemy");
-            for (int i = enemiesList.Count - 1; i >= 0; i--)
+            if (enemyToRemove == null || !enemiesList.Remove(enemyToRemove)) return;
+            enemyToRemove.transform.SetParent(null);
+            deadEnemyCount++;
+        }
+
+        public void HidePortals()
+        {
+            //Add rather than replace: hidden portals can't be found by tag again
+            foreach (var portal in GameObject.FindGameObjectsWithTag("Portal"))
             {
-                if (enemiesList[i] == enemyToRemove)
-                { 
-                    enemiesList.RemoveAt(i);
-                    enemyToRemove.transform.SetParent(null);
-                    deadEnemyCount++;
-                    
-                    if (deadEnemyCount == nextWaveCount)
-                    {
-                        nextTeam = false;                        
-                    }
-                    break;
-                }
+                if (!portals.Contains(portal)) portals.Add(portal);
+                portal.SetActive(false);
             }
         }
 
-        void DisableTeams()
+        public void ShowPortals()
         {
-            for (int i = 1; i < secTeam.Count; i++)
-            {
-                secTeam[i].SetActive(false);
-            }
+            portals.RemoveAll(p => p == null);
+            foreach (var portal in portals) portal.SetActive(true);
         }
 
-        int CountEnemiesInChildren(GameObject activeSecTeam)
+        static List<GameObject> LivingEnemiesIn(GameObject wave)
         {
-            int enemyCount = 0;
-            foreach (Transform child in activeSecTeam.transform)
+            var found = new List<GameObject>();
+            foreach (var t in wave.GetComponentsInChildren<Transform>())
             {
-                if (child.CompareTag("Enemy"))
-                {
-                    enemyCount++;
-                }
+                if (!t.CompareTag("Enemy")) continue;
+                var health = t.GetComponent<Health>();
+                if (health != null && health.IsDead()) continue;
+                found.Add(t.gameObject);
             }
-            Debug.Log("EnemyCount" + " " + enemyCount);
-            return enemyCount;
+            return found;
+        }
+
+        //Every SecTeam in the loaded scenes, switched on or off, top of the Hierarchy first
+        static List<GameObject> FindWaves()
+        {
+            var waves = new List<GameObject>();
+            foreach (var t in FindObjectsOfType<Transform>(true))
+            {
+                if (t.CompareTag(WaveTag) && t.gameObject.scene.isLoaded) waves.Add(t.gameObject);
+            }
+            waves.Sort(CompareHierarchyOrder);
+            return waves;
+        }
+
+        static int CompareHierarchyOrder(GameObject a, GameObject b)
+        {
+            int sa = SceneOrder(a.scene), sb = SceneOrder(b.scene);
+            if (sa != sb) return sa.CompareTo(sb);
+            var pa = SiblingPath(a.transform);
+            var pb = SiblingPath(b.transform);
+            for (int i = 0; i < Mathf.Min(pa.Count, pb.Count); i++)
+            {
+                if (pa[i] != pb[i]) return pa[i].CompareTo(pb[i]);
+            }
+            return pa.Count.CompareTo(pb.Count);
+        }
+
+        static int SceneOrder(Scene scene)
+        {
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                if (SceneManager.GetSceneAt(i) == scene) return i;
+            }
+            return int.MaxValue;
+        }
+
+        static List<int> SiblingPath(Transform t)
+        {
+            var path = new List<int>();
+            for (; t != null; t = t.parent) path.Insert(0, t.GetSiblingIndex());
+            return path;
         }
     }
 }

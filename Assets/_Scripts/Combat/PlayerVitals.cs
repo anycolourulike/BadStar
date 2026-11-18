@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using Rambler.Core;
 using TMPro;
@@ -66,6 +66,8 @@ namespace Rambler.Combat
             MaxHealth();
             MaxEnergy();
         }
+
+        public void RefillEnergy() => MaxEnergy();
 
         //Portrait slots are built at runtime and hand their bars over here
         public void BindBars(Image healthBar, Image energyBar)

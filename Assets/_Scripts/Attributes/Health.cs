@@ -164,6 +164,15 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
             }            
         } 
         
+        //Healing pads and pickups: adds health up to the maximum. The HUD bar follows on its own.
+        public void Heal(float amount)
+        {
+            if (isDead || amount <= 0f) return;
+            healthPoints.value = Mathf.Min(healthPoints.value + amount, GetInitialHealth());
+        }
+
+        public float GetMaxHealth() => GetInitialHealth();
+
         public void RestoreHealth()
         {
             healthPoints = new LazyValue<float>(GetInitialHealth);
