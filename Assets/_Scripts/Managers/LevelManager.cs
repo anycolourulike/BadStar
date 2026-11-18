@@ -80,11 +80,20 @@ public class LevelManager : MonoBehaviour, ISaveable
         Debug.Log(destinationID.ToString());
     }
 
-    public IEnumerator LoadLoading() 
-    {  
+    public IEnumerator LoadLoading()
+    {
        FindAssetPath();
-       yield return new WaitForSeconds(0.3f); //Delay to allow loading of next scenes assets
-       
+       yield return new WaitForSecondsRealtime(0.3f); //Delay to allow loading of next scenes assets
+
+       //Let a fade-out that is already running (portal, menu, continue) reach black before the scene swaps
+       Fader fader = FindObjectOfType<Fader>();
+       float waited = 0f;
+       while (fader != null && fader.IsFading && waited < 5f)
+       {
+           waited += Time.unscaledDeltaTime;
+           yield return null;
+       }
+
        //Use loadedSceneHandle to match your convention and yield it to ensure completion
        AsyncOperationHandle<SceneInstance> loadedSceneHandle = 
            Addressables.LoadSceneAsync(Loading, LoadSceneMode.Single);
@@ -103,17 +112,30 @@ public class LevelManager : MonoBehaviour, ISaveable
         yield return StartCoroutine(nameof(LoadLoading));
     } 
 
-    IEnumerator LoadSavedFile() 
+    //Called by Loading once the next level has loaded in the background. Switches it in from here because
+    //LevelManager survives the switch, while the Loading scene (and its component) is unloaded by it.
+    public void ActivateLevel(AsyncOperationHandle<SceneInstance> levelHandle)
     {
-        //Wait for scene to load and for lists to populate
-        yield return new WaitForSeconds(.2f);
+        StartCoroutine(ActivateLevelRoutine(levelHandle));
+    }
+
+    IEnumerator ActivateLevelRoutine(AsyncOperationHandle<SceneInstance> levelHandle)
+    {
+        yield return levelHandle.Result.ActivateAsync();
+        //Track the level's handle like the Loading scene's, so the next change releases it
+        OnSceneLoadComplete(levelHandle);
+        OnLevelFinishedLoading();
+    }
+
+    void LoadSavedFile()
+    {
         wrapper.Load();
         if (lifeWasLost == true)
         {
             lifeWasLost = false;
-            playerHealth.RestoreHealth();
+            if (playerHealth != null) playerHealth.RestoreHealth();
         }
-    }        
+    }
 
     public IEnumerator QuitApp()
     {   
@@ -133,15 +155,13 @@ public class LevelManager : MonoBehaviour, ISaveable
         FindAssetPath();
         AmbientMusic();
         FindSceneRefs();
-        if (sceneToLoad == Loading) return;
         if (sceneToLoad == Menu) return;
-        if (sceneRef != null)
-        {
-            FindPlayerSelector();
-        }
-        
-        if (loadSave) StartCoroutine(nameof(LoadSavedFile));
-        StartCoroutine(nameof(SetUpLevel));
+        //LevelManager outlives every scene, so find the new level's spawner each time (null in levels without one)
+        enemySpawner = FindObjectOfType<EnemySpawner>();
+        if (wrapper == null) wrapper = FindObjectOfType<SavingWrapper>();
+        FindPlayerSelector();
+
+        StartCoroutine(SetUpLevel(loadSave));
         Time.timeScale = 1;
         DestOutput();
     } 
@@ -169,35 +189,42 @@ public class LevelManager : MonoBehaviour, ISaveable
         if (activePlayer != null)
         {
             playerHealth = activePlayer.GetComponent<Health>();
-            enemySpawner.FindPopUp();
-            //The level's fader is saved inactive; switch it on so it can fade in from black
+            if (enemySpawner != null) enemySpawner.FindPopUp();
+            //The level's fader is saved inactive; switch it on so the level stays black until SetUpLevel fades in
             fader.gameObject.SetActive(true);
-            StartCoroutine(FadeInWhenAreasReady(fader));
         }
-    }
-
-    //Streamed levels: stay black until the areas around the player have loaded (gives up after 15 s)
-    IEnumerator FadeInWhenAreasReady(Fader fader)
-    {
-        float waited = 0f;
-        while (!AreaStreamer.InitialAreasReady && waited < 15f)
-        {
-            waited += Time.unscaledDeltaTime;
-            yield return null;
-        }
-        fader.FadeToClear(2f);
     }
 
     void FindSceneRefs()
     {
         sceneRefs = FindObjectOfType<SceneRefs>();
     }
-    
-    IEnumerator SetUpLevel()
+
+    //Runs in order once a level is in: wait for streamed areas, restore the save, put the player at the portal
+    //they came through, fade in, then (after the dead-AI settle time) check enemies and portals and hook up dialogue
+    IEnumerator SetUpLevel(bool loadSave)
     {
-        //Waiting for level enemies to HealthCheck and remove dead AI
-        yield return new WaitForSeconds(2.8f);
-        if (DestinationCheck() == true)
+        float settleUntil = Time.time + 2.8f; //Time for restored dead enemies to HealthCheck and remove themselves
+
+        //Streamed levels: wait for the areas around the player, so saveables inside them exist (gives up after 15 s)
+        float waited = 0f;
+        while (!AreaStreamer.InitialAreasReady && waited < 15f)
+        {
+            waited += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        //Two frames so every new object has run Awake and Start (Portal.Start picks up the active player)
+        yield return null;
+        yield return null;
+
+        if (loadSave) LoadSavedFile();
+        bool arrivedByPortal = PlaceAtDestination();
+
+        if (sceneRefs != null && sceneRefs.fader != null) sceneRefs.fader.FadeToClear(2f);
+
+        while (Time.time < settleUntil) yield return null;
+
+        if (arrivedByPortal && enemySpawner != null)
         {
             Debug.Log("DestinationCheckTrue");
             if (enemySpawner.EnemyCheck() == true)
@@ -279,22 +306,21 @@ public class LevelManager : MonoBehaviour, ISaveable
         return foundPortals;
     }
 
-    bool DestinationCheck()
+    //Puts the active player at the spawn point of the portal matching destinationID. False if the level has none.
+    bool PlaceAtDestination()
     {
-        List<GameObject> portals = FindPortals();
-
-        foreach (GameObject portal in portals)
+        foreach (Portal portalScript in FindObjectsOfType<Portal>())
         {
-            Portal portalScript = portal.GetComponent<Portal>();
-            if (portalScript.destination == destinationID)
-            {
-                spawnPoint = portalScript.playerSpawnPoint;
-                var player = portalScript.activePlayer;
-                player.GetComponent<NavMeshAgent>().enabled = false;
-                player.transform.position = spawnPoint.transform.position;
-                player.GetComponent<NavMeshAgent>().enabled = true;
-                return true;
-            }
+            if (portalScript.destination != destinationID) continue;
+
+            spawnPoint = portalScript.playerSpawnPoint;
+            var player = activePlayer != null ? activePlayer : portalScript.activePlayer;
+            if (player == null || spawnPoint == null) return false;
+
+            var agent = player.GetComponent<NavMeshAgent>();
+            if (agent != null && agent.enabled) agent.Warp(spawnPoint.position);
+            else player.transform.position = spawnPoint.position;
+            return true;
         }
         return false;
     }

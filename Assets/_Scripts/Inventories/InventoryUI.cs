@@ -26,29 +26,42 @@ namespace Rambler.UI.Inventories
             playerInventory = activePlayer.GetComponent<Inventory>();
             playerInventory = playerInventory.GetPlayerInventory();
         }
-        private void OnEnable() 
+        //The inventory Redraw is currently listening to, so a switch can unhook the right one
+        Inventory listeningTo;
+
+        private void OnEnable()
         {
-            playerInventory.inventoryUpdated += Redraw;
+            Listen(playerInventory);
             Ui.color = Color.red;
         }
 
         private void OnDisable()
         {
             Ui.color = Color.white;
-            playerInventory.inventoryUpdated -= Redraw;
+            Listen(null);
         }
 
         private void Start()
-        {  
-            Redraw();     
+        {
+            Redraw();
         }
 
-        void UpdatePlayer(GameObject newPlayer)
+        /// <summary>
+        /// Show another character's inventory (PlayerSelector calls this on a character switch).
+        /// </summary>
+        public void SetInventory(GameObject newPlayer)
         {
             activePlayer = newPlayer;
-           
-            playerInventory = activePlayer.GetComponent<Inventory>();
+            playerInventory = newPlayer != null ? newPlayer.GetComponent<Inventory>() : null;
+            if (isActiveAndEnabled) Listen(playerInventory);
             Redraw();
+        }
+
+        void Listen(Inventory inventory)
+        {
+            if (listeningTo != null) listeningTo.inventoryUpdated -= Redraw;
+            listeningTo = inventory;
+            if (listeningTo != null) listeningTo.inventoryUpdated += Redraw;
         }
 
         public void Redraw()
@@ -57,6 +70,7 @@ namespace Rambler.UI.Inventories
             {
                 Destroy(child.gameObject);
             }
+            if (playerInventory == null) return;
 
             for (int i = 0; i < playerInventory.GetSize(); i++)
             {

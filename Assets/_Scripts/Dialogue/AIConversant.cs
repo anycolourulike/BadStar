@@ -17,8 +17,11 @@ namespace Rambler.Dialogue
         [SerializeField] GameUI gameUI;
         [SerializeField] Mover mover;
         [SerializeField] GameObject panel;
+        [Tooltip("Off: talks once, then the trigger switches off for good (the old behaviour). On: talks again each time the player walks back in.")]
+        [SerializeField] bool repeatable = false;
         
         SphereCollider sphereCollider;
+        bool talkedThisVisit; //Repeatable: stops a restart while the player is still standing in the trigger
 
         void Start()
         {
@@ -61,10 +64,13 @@ namespace Rambler.Dialogue
             // {
             //    mover.Cancel();                      
             // } 
+            if (playerConversant == null || playerConversant.IsActive()) return false;
+
             playerConversant.StartDialogue(this, dialogue);
-            panel.SetActive(false);
-            gameUI.PauseGame();
-            sphereCollider.enabled = false;
+            if (panel != null) panel.SetActive(false);
+            if (gameUI != null) gameUI.PauseGame();
+            if (repeatable) talkedThisVisit = true;
+            else if (sphereCollider != null) sphereCollider.enabled = false;
             //ammo counter
             return true;
         }
@@ -97,10 +103,15 @@ namespace Rambler.Dialogue
 
         void OnTriggerEnter(Collider other)
         {
-            if(other.gameObject == Player)
+            if(other.gameObject == Player && !talkedThisVisit)
             {
                 HandleRaycast();
             }
+        }
+
+        void OnTriggerExit(Collider other)
+        {
+            if (other.gameObject == Player) talkedThisVisit = false;
         }
 
         public void CancelNav()

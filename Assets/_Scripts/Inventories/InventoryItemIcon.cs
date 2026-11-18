@@ -1,17 +1,14 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using Rambler.Inventories;
 using Rambler.Combat;
-using TMPro;
 using Rambler.Control;
- 
+using TMPro;
+
 namespace Rambler.Inventories
 {
     /// <summary>
-    /// To be put on the icon representing an inventory item. Allows the slot to
-    /// update the icon and number.
+    /// To be put on the icon representing an inventory item. The slot hands it the inventory and its slot index;
+    /// Equip and Drop act on that exact slot. The inventory's GameObject is the character who owns it.
     /// </summary>
     [RequireComponent(typeof(Image))]
     public class InventoryItemIcon : MonoBehaviour
@@ -19,91 +16,63 @@ namespace Rambler.Inventories
         [SerializeField] Button equipBtn;
         [SerializeField] Button dropBtn;
         [SerializeField] TextMeshProUGUI itemNumber;
-        
+
+        //Kept public so existing prefab values still deserialise; set from the slot now
         public PlayerSelector playerSelector;
         public Inventory inventory;
-        public GameObject player;  
+        public GameObject player;
         public Weapon thisWeapon;
-        int slotIndex;
-        int textInv;
+        int slotIndex = -1;
 
-        void OnEnable()
+        public void SetItem(Inventory inventory, int slotIndex)
         {
-            PlayerSelector.OnPlayerObjectChanged += UpdatePlayer;
-        }
+            this.inventory = inventory;
+            this.slotIndex = slotIndex;
+            player = inventory != null ? inventory.gameObject : null;
 
-        void OnDisable()
-        {
-            PlayerSelector.OnPlayerObjectChanged -= UpdatePlayer;
-        }
+            //The slot UI is rebuilt on every inventory change, but clear anyway so a reused icon never double-fires
+            equipBtn.onClick.RemoveAllListeners();
+            dropBtn.onClick.RemoveAllListeners();
 
-        void Start() 
-        {
-            var playerCore = GameObject.Find("PlayerCore");
-            playerSelector = playerCore.GetComponent<PlayerSelector>();
-            player = playerSelector.activePlayer;
-            inventory = player.GetComponent<Inventory>();
-        }
-      
-        public void SetItem(Weapon weaponConfig, int number)
-        {            
             var iconImage = GetComponent<Image>();
-            if (weaponConfig == null)
+            thisWeapon = inventory != null ? inventory.GetItemInSlot(slotIndex) : null;
+            if (thisWeapon == null)
             {
                 iconImage.enabled = false;
+                itemNumber.text = "";
+                return;
             }
-            else
-            {                
-                iconImage.enabled = true;
-                iconImage.sprite = weaponConfig.GetIcon();    
-                equipBtn.onClick.AddListener(() => OnEquipBtnClick(weaponConfig));
-                dropBtn.onClick.AddListener(() => OnDropBtnClick(weaponConfig, number));
-                thisWeapon = weaponConfig;
-                
-                if(int.TryParse(itemNumber.text, out textInv))
-                {
-                    textInv += number;
-                    itemNumber.text = textInv.ToString();
-                }
-                else
-                {
-                    textInv = number;
-                    itemNumber.text = textInv.ToString();
-                }                
-            }
-        }        
- 
-        public void OnEquipBtnClick(Weapon equipWeapon)
-        {
-            if(equipWeapon.isMedKit == true)
-            {
-                int i = 1;
-                slotIndex = inventory.FindSlot(thisWeapon);
-                inventory.RemoveFromSlot(slotIndex, i);
-                itemNumber.text = i.ToString();
-                //return;
-            }
-            player.GetComponent<Fighter>().EquipWeapon(equipWeapon);
-        }
- 
-        public void OnDropBtnClick(Weapon dropWeapon, int number)
-        {           
-            player.GetComponent<ItemDropper>().DropItem(thisWeapon, number);  
-            player.GetComponent<Fighter>().EquipUnarmed();
 
-            slotIndex = inventory.FindSlot(thisWeapon);          
+            iconImage.enabled = true;
+            iconImage.sprite = thisWeapon.GetIcon();
+            itemNumber.text = inventory.GetNumberInSlot(slotIndex).ToString();
+            equipBtn.onClick.AddListener(OnEquipBtnClick);
+            dropBtn.onClick.AddListener(OnDropBtnClick);
+        }
+
+        public void OnEquipBtnClick()
+        {
+            if (thisWeapon == null || player == null) return;
+            //Fighter handles medkits itself: heals, spends one, keeps the current weapon
+            player.GetComponent<Fighter>().EquipWeapon(thisWeapon);
+        }
+
+        public void OnDropBtnClick()
+        {
+            if (thisWeapon == null || player == null) return;
+            Weapon dropped = thisWeapon;
+            int number = inventory.GetNumberInSlot(slotIndex);
+            if (number <= 0) return;
+
             inventory.RemoveFromSlot(slotIndex, number);
-        }
+            player.GetComponent<ItemDropper>().DropItem(dropped, number);
 
-        void UpdatePlayer(GameObject newPlayer)
-        {
-            Invoke(nameof(AssignActiveInv), 0.5f);
-        }
-
-        void AssignActiveInv()
-        {
-            player = playerSelector.activePlayer;
-            inventory = player.GetComponent<Inventory>();
+            //Only go empty-handed if the dropped item was the one in hand and none is left
+            var fighter = player.GetComponent<Fighter>();
+            if (fighter != null && fighter.weaponConfig == dropped && !inventory.HasItem(dropped))
+            {
+                fighter.EquipUnarmed();
+            }
         }
     }
 }

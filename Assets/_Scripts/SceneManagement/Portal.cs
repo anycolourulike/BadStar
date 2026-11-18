@@ -13,7 +13,7 @@ using Rambler.Saving;
 
 namespace Rambler.SceneManagement 
 {
-    public class Portal : MonoBehaviour, ISaveable
+    public class Portal : MonoBehaviour
     {
         public enum DestinationIdentifier
         {
@@ -21,6 +21,7 @@ namespace Rambler.SceneManagement
         }    
         
         [SerializeField] float fadeOutTime = 4f;
+        bool transitioning;
         PlayerController playerController;
         LevelManager levelManager;       
         
@@ -59,12 +60,14 @@ namespace Rambler.SceneManagement
 
         private void OnTriggerEnter(Collider other)
         {
+            if (transitioning) return; //Re-entering the trigger during the fade must not start a second load
             if (other.gameObject == activePlayer)
             {
+                transitioning = true;
                 StartCoroutine(Transition());
             }
         }
-        
+
         private IEnumerator Transition()
         {
             levelManager.destinationID = destination;
@@ -73,21 +76,12 @@ namespace Rambler.SceneManagement
 
             Fader fader = FindObjectOfType<Fader>();
             SavingWrapper wrapper = FindObjectOfType<SavingWrapper>();
-            fader.FadeToClear(fadeOutTime); 
             wrapper.Save();
-           
-            yield return levelManager.StartCoroutine("LoadLoading"); 
+            //Fade out fully before LoadLoading swaps the scene
+            if (fader != null) yield return fader.FadeToBlack(fadeOutTime);
+
+            yield return levelManager.StartCoroutine("LoadLoading");
             Destroy(gameObject);
-        }
-
-        public object CaptureState()
-        {
-            throw new NotImplementedException();
-        }
-
-        public void RestoreState(object state)
-        {
-            throw new NotImplementedException();
         }
     }
 }

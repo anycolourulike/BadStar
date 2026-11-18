@@ -14,7 +14,7 @@ namespace Rambler.SceneManagement
     public class SavingWrapper : MonoBehaviour
     {
         const string currentSaveKey = "currentSaveName";
-        float fadeOutTime = 4f;
+        float fadeOutTime = 1.5f;
 
         public void ContinueGame() 
         {
@@ -29,7 +29,7 @@ namespace Rambler.SceneManagement
         private IEnumerator LoadLastScene()
         {
             Fader fader = FindObjectOfType<Fader>();
-            yield return fader.FadeToClear(fadeOutTime);
+            yield return fader.FadeToBlack(fadeOutTime);
             yield return GetComponent<SavingSystem>().LoadLastScene(currentSaveKey);
             //assign sceneRef
             //intro Ref
@@ -38,7 +38,7 @@ namespace Rambler.SceneManagement
         private IEnumerator LoadFirstScene()
         {
             Fader fader = FindObjectOfType<Fader>();
-            yield return fader.FadeToClear(fadeOutTime);            
+            yield return fader.FadeToBlack(fadeOutTime);            
             LevelManager.Instance.sceneRef = 2;
             LevelManager.Instance.StartCoroutine("LoadLoading");
         }
@@ -46,7 +46,7 @@ namespace Rambler.SceneManagement
         private IEnumerator LoadMenuScene()
         {
             Fader fader = FindObjectOfType<Fader>();
-            yield return fader.FadeToClear(fadeOutTime);
+            yield return fader.FadeToBlack(fadeOutTime);
             LevelManager.Instance.sceneRef = 0;
             LevelManager.Instance.StartCoroutine("LoadLoading");
         }

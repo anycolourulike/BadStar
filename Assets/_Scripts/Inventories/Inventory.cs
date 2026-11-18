@@ -100,6 +100,23 @@ namespace Rambler.Inventories
         }
 
         /// <summary>
+        /// The first slot holding this item, or -1 if it is not in the inventory.
+        /// (FindSlot is different: it finds somewhere the item could be ADDED.)
+        /// </summary>
+        public int FindItemSlot(Weapon weaponConfig)
+        {
+            if (weaponConfig == null) return -1;
+            for (int i = 0; i < slots.Length; i++)
+            {
+                if (object.ReferenceEquals(slots[i].weaponConfig, weaponConfig))
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
         /// Return the item type in the given slot.
         /// </summary>
         public Weapon GetItemInSlot(int slot)
@@ -243,10 +260,12 @@ namespace Rambler.Inventories
         void ISaveable.RestoreState(object state)
         {
             var slotStrings = (InventorySlotRecord[])state;
-            for (int i = 0; i < inventorySize; i++)
+            //A save made with a different inventorySize restores what fits instead of throwing
+            for (int i = 0; i < slots.Length; i++)
             {
-                slots[i].weaponConfig = Weapon.GetFromID(slotStrings[i].itemID);
-                slots[i].number = slotStrings[i].number;
+                bool saved = i < slotStrings.Length;
+                slots[i].weaponConfig = saved ? Weapon.GetFromID(slotStrings[i].itemID) : null;
+                slots[i].number = saved && slots[i].weaponConfig != null ? slotStrings[i].number : 0;
             }
             if (inventoryUpdated != null)
             {

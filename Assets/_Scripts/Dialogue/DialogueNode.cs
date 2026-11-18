@@ -2,7 +2,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using Rambler.Utils;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
 
 namespace Rambler.Dialogue

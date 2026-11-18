@@ -31,7 +31,7 @@ public class MenuScene : MonoBehaviour
     {
         wrapper.Delete();
         FindMusic();
-        fader.FadeToClear(3);
+        fader.FadeToBlack(1.5f);
         levelManager.sceneRef = sceneRef;
         levelManager.StartCoroutine("LoadLoading");  
     }
@@ -39,7 +39,7 @@ public class MenuScene : MonoBehaviour
     public void LoadSavedGame() 
     {  
        //wrapper.Load();
-        fader.FadeToClear(3);
+        fader.FadeToBlack(1.5f);
         FindMusic();
         LevelManager.Instance.lifeWasLost = true;
         wrapper.ContinueGame(); 
@@ -48,7 +48,7 @@ public class MenuScene : MonoBehaviour
     public void QuitApp()
     {
         FindMusic();
-        fader.FadeToClear(3);
+        fader.FadeToBlack(1.5f);
         levelManager.StartCoroutine("QuitApp");
     }
 

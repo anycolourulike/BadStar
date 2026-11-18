@@ -12,7 +12,8 @@ namespace Rambler.Quests
     
         void Start()
         {
-            questList = GameObject.FindGameObjectWithTag("Player").GetComponent<QuestList>();
+            questList = QuestList.Find();
+            if (questList == null) return;
             questList.onUpdate += Redraw;
             Redraw();
         }

@@ -1,17 +1,18 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceProviders;
-using Rambler.Core;
-using Rambler.SceneManagement;
-using Rambler.Saving;
 
+//Sits in the Loading scene. Loads the level LevelManager picked in the background while the loading screen shows,
+//then, once the level is ready and the screen has been up for at least minDisplayTime, hands it to LevelManager to
+//switch in. LevelManager does the switch because activating the level unloads this scene (and this component).
 public class Loading : MonoBehaviour
-{    
-   AsyncOperationHandle<SceneInstance> handle; 
+{
+   [Tooltip("Shortest time the loading screen stays up (s), so its image can be read")]
+   [SerializeField] float minDisplayTime = 4f;
+
    public AssetReference sceneToLoad;
 
    void Start()
@@ -20,29 +21,23 @@ public class Loading : MonoBehaviour
       StartCoroutine(nameof(LoadScene));
    }
 
-   public IEnumerator LoadScene() 
-   { 
-      yield return new WaitForSeconds(4);
-      Addressables.LoadSceneAsync(sceneToLoad, LoadSceneMode.Single).Completed += OnSceneLoadComplete; 
-   } 
+   public IEnumerator LoadScene()
+   {
+      float shownUntil = Time.unscaledTime + minDisplayTime;
 
-   void OnSceneLoadComplete(AsyncOperationHandle<SceneInstance>previousScene)
-   {  
-      if(previousScene.Status == AsyncOperationStatus.Succeeded)
-      { 
-        handle = previousScene;
-        UnloadScene();
-      }  
+      //Load without activating, so the loading screen stays up until the switch
+      AsyncOperationHandle<SceneInstance> handle =
+         Addressables.LoadSceneAsync(sceneToLoad, LoadSceneMode.Single, activateOnLoad: false);
+      yield return handle;
+
+      if (handle.Status != AsyncOperationStatus.Succeeded)
+      {
+         Debug.LogError("Loading: could not load the level " + sceneToLoad);
+         yield break;
+      }
+
+      while (Time.unscaledTime < shownUntil) yield return null;
+
+      LevelManager.Instance.ActivateLevel(handle);
    }
-
-   void UnloadScene()
-   {        
-      Addressables.UnloadSceneAsync(handle, true).Completed += op =>
-      {         
-         if(op.Status == AsyncOperationStatus.Succeeded)
-         { 
-           LevelManager.Instance.OnLevelFinishedLoading();
-         }
-      };
-   } 
 }

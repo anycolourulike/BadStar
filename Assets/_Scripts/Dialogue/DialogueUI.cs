@@ -21,7 +21,12 @@ namespace Rambler.UI
 
         public void InitDialogue()
         {
+            //Safe to call more than once: unhook first so buttons and updates never fire twice.
+            //RemoveAllListeners only clears code-added listeners; the Inspector-wired ResumeGame etc. stay.
+            playerConversant.onConversationUpdated -= UpdateUI;
             playerConversant.onConversationUpdated += UpdateUI;
+            nextButton.onClick.RemoveAllListeners();
+            quitButton.onClick.RemoveAllListeners();
             nextButton.onClick.AddListener(() => playerConversant.Next());
             quitButton.onClick.AddListener(() => playerConversant.Quit());
             UpdateUI();

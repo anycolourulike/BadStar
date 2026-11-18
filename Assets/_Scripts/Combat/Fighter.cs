@@ -194,13 +194,18 @@ namespace Rambler.Combat
 
         public void EquipWeapon(Weapon weapon)
         {
+            //A medkit is used, not held: heal, spend one, and keep the current weapon in hand
             if (weapon.isMedKit == true)
             {
                 var health = GetComponent<Health>();
                 health.RestoreHealth();
                 var inv = GetComponent<Inventory>();
-                var slot = inv.FindSlot(weapon);
-                inv.RemoveFromSlot(slot, 1);
+                if (inv != null)
+                {
+                    int slot = inv.FindItemSlot(weapon);
+                    if (slot >= 0) inv.RemoveFromSlot(slot, 1);
+                }
+                return;
             }
 
             DestroyOldWeapon(handTransform: handTransform);

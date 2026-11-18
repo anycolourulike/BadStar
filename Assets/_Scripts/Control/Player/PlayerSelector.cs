@@ -184,9 +184,7 @@ namespace Rambler.Control
         void UpdateInventory()
         {
             inv = activePlayer.GetComponent<Inventory>();
-            UiInventory.playerInventory = inv;
-            UiInventory.activePlayer = activePlayer;
-            UiInventory.Redraw();
+            UiInventory.SetInventory(activePlayer);
         }
     }
 }

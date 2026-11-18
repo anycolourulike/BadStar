@@ -1,10 +1,9 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace Rambler.Quests
 {
+    //Progress on one quest at runtime: which objectives are done.
     public class QuestStatus
     {
         Quest quest;
@@ -22,11 +21,13 @@ namespace Rambler.Quests
             this.quest = quest;
         }
 
+        //Rebuilds a status from a save. GetQuest() is null if the quest asset can no longer be found.
         public QuestStatus(object objectState)
         {
             QuestStatusRecord state = objectState as QuestStatusRecord;
+            if (state == null) return;
             quest = Quest.GetByName(state.questName);
-            completedObjectives = state.completedObjectives;
+            if (state.completedObjectives != null) completedObjectives = new List<string>(state.completedObjectives);
         }
 
         public Quest GetQuest()
@@ -36,6 +37,7 @@ namespace Rambler.Quests
 
         public bool IsComplete()
         {
+            if (quest == null) return false;
             foreach (var objective in quest.GetObjectives())
             {
                 if (!completedObjectives.Contains(objective.reference))
@@ -56,19 +58,36 @@ namespace Rambler.Quests
             return completedObjectives.Contains(objective);
         }
 
-        public void CompleteObjective(string objective)
+        //The first objective (top to bottom) not done yet, or null when the quest is complete
+        public Quest.Objective GetCurrentObjective()
         {
-            if (quest.HasObjective(objective))
+            if (quest == null) return null;
+            foreach (var objective in quest.GetObjectives())
             {
-                completedObjectives.Add(objective);
+                if (!completedObjectives.Contains(objective.reference)) return objective;
             }
+            return null;
+        }
+
+        //Returns true if this changed anything
+        public bool CompleteObjective(string objective)
+        {
+            if (quest == null || !quest.HasObjective(objective)) return false;
+            if (completedObjectives.Contains(objective)) return false;
+            if (quest.IsInOrder())
+            {
+                var current = GetCurrentObjective();
+                if (current == null || current.reference != objective) return false;
+            }
+            completedObjectives.Add(objective);
+            return true;
         }
 
         public object CaptureState()
         {
             QuestStatusRecord state = new QuestStatusRecord();
             state.questName = quest.name;
-            state.completedObjectives = completedObjectives;
+            state.completedObjectives = new List<string>(completedObjectives); //A copy, so later progress can't change a taken save
             return state;
         }
     }

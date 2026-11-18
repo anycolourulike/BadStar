@@ -22,7 +22,7 @@ namespace Rambler.Inventories
         {
             this.inventory = inventory;
             this.index = index;
-            icon.SetItem(inventory.GetItemInSlot(index), inventory.GetNumberInSlot(index));
+            icon.SetItem(inventory, index);
         }
 
         public int MaxAcceptable(Weapon weaponConfig)

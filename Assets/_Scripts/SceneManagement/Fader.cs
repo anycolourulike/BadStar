@@ -27,6 +27,9 @@ namespace Rambler.SceneManagement
             canvasGroup.blocksRaycasts = true;
         }
 
+        //True while a timed fade is running (LevelManager waits on this before switching scenes)
+        public bool IsFading => currentActiveFade != null;
+
         public Coroutine FadeToBlack(float time) => Fade(1, time);
         public Coroutine FadeToClear(float time) => Fade(0, time);
 

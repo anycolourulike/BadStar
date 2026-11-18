@@ -23,7 +23,7 @@ namespace Rambler.Dialogue
             currentDialogue = newDialogue;
             currentNode = currentDialogue.GetRootNode();
             TriggerEnterAction();
-            onConversationUpdated();
+            onConversationUpdated?.Invoke();
         }
 
         public void Quit()
@@ -33,7 +33,7 @@ namespace Rambler.Dialogue
             currentNode = null;
             isChoosing = false;
             currentConversant = null;
-            onConversationUpdated();
+            onConversationUpdated?.Invoke();
         }
 
         public bool IsActive()
@@ -57,14 +57,12 @@ namespace Rambler.Dialogue
 
         public string GetCurrentConversantName()
         {
-            if (isChoosing)
+            //Also covers a final player line shown on its own (see SelectChoice)
+            if (isChoosing || (currentNode != null && currentNode.IsPlayerSpeaking()))
             {
                 return playerName;
             }
-            else
-            {
-                return currentConversant.GetName();
-            }
+            return currentConversant != null ? currentConversant.GetName() : "";
         }
 
         public IEnumerable<DialogueNode> GetChoices()
@@ -77,6 +75,13 @@ namespace Rambler.Dialogue
             currentNode = chosenNode;
             TriggerEnterAction();
             isChoosing = false;
+            if (!HasNext())
+            {
+                //Last line of the conversation: show the chosen line with Next hidden, so the player leaves with
+                //the Quit button (which is also wired to resume the game and bring the HUD back)
+                onConversationUpdated?.Invoke();
+                return;
+            }
             Next();
         }
     
@@ -89,16 +94,22 @@ namespace Rambler.Dialogue
             {
                 isChoosing = true;
                 TriggerExitAction();
-                onConversationUpdated();
+                onConversationUpdated?.Invoke();
                 return;
             }
 
             DialogueNode[] children = FilterOnCondition(currentDialogue.GetAIChildren(currentNode)).ToArray();
-            int randomIndex = UnityEngine.Random.Range(0, children.Count());
+            if (children.Length == 0)
+            {
+                //Nothing left to say: stay on this line (Next is hidden, Quit ends it)
+                onConversationUpdated?.Invoke();
+                return;
+            }
+            int randomIndex = UnityEngine.Random.Range(0, children.Length);
             TriggerExitAction();
             currentNode = children[randomIndex];
             TriggerEnterAction();
-            onConversationUpdated();
+            onConversationUpdated?.Invoke();
         }
 
         public bool HasNext()
@@ -140,7 +151,7 @@ namespace Rambler.Dialogue
 
         private void TriggerAction(string action)
         {
-            if (action == "") return;
+            if (string.IsNullOrEmpty(action) || currentConversant == null) return;
 
             foreach (DialogueTrigger trigger in currentConversant.GetComponents<DialogueTrigger>())
             {
