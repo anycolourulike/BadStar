@@ -17,7 +17,27 @@ namespace Rambler.Combat
     [SerializeField] float damage;     
     public Vector3 target;
     public bool isGrenade;
-    Rigidbody Rb;  
+    //Who fired it (set by ActiveWeapon). Null for projectiles from other sources (boulders, turrets).
+    public GameObject Owner { get; set; }
+    Rigidbody Rb;
+
+    //Should this projectile hurt the character "victim"? Not its own shooter, and not the shooter's side:
+    //enemies don't hurt enemies, and the player's side (Player, Companion) doesn't hurt itself.
+    public bool CanHurt(GameObject victim)
+    {
+      if (Owner == null || victim == null) return true;
+      if (victim == Owner || victim.transform.IsChildOf(Owner.transform)) return false;
+      return !SameSide(Owner, victim);
+    }
+
+    static bool SameSide(GameObject a, GameObject b)
+    {
+      bool aEnemy = a.CompareTag("Enemy"), bEnemy = b.CompareTag("Enemy");
+      if (aEnemy || bEnemy) return aEnemy && bEnemy;
+      bool aPlayerSide = a.CompareTag("Player") || a.CompareTag("Companion");
+      bool bPlayerSide = b.CompareTag("Player") || b.CompareTag("Companion");
+      return aPlayerSide && bPlayerSide;
+    }
 
     void Start()
     {

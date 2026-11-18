@@ -23,6 +23,9 @@ MonoBehaviour:
   isRifle: 1
   isMelee: 0
   isEMP: 0
+  fireInterval: 0.6
+  magazineSize: 0
+  maxReserve: 0
   itemID: f244564d-2176-4383-abaf-7c8257e6e8ee
   displayName: Shotgun
   description: 

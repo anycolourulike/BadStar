@@ -100,7 +100,8 @@ namespace Rambler.Inventories
             var newList = new List<WeaponPickUp>();
             foreach (var item in droppedItems)
             {
-                if (item != null)
+                //WeaponPickUp hides itself when picked up rather than being destroyed, so hidden counts as gone
+                if (item != null && item.gameObject.activeSelf)
                 {
                     newList.Add(item);
                 }

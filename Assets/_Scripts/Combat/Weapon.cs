@@ -19,8 +19,19 @@ namespace Rambler.Combat
         public bool isRifle;        
         public bool isMelee;
         public bool isEMP;
-        
-         
+
+        [Header("Stats (0 = the old default for this weapon type)")]
+        [Tooltip("Seconds between shots (or swings). 0 = the character's Fighter timeBetweenAttacks.")]
+        [Min(0f)] [SerializeField] float fireInterval = 0f;
+        [Tooltip("Rounds per magazine. 0 = default for the weapon type (pistol 15, SMG 20, rifle 25, shotgun 5, launcher 5, plasma 7).")]
+        [Min(0)] [SerializeField] int magazineSize = 0;
+        [Tooltip("Reserve rounds carried when the gun is new. 0 = default for the weapon type (pistol 90, SMG 120, rifle 150, shotgun 50, launcher 20, plasma 50).")]
+        [Min(0)] [SerializeField] int maxReserve = 0;
+
+        public float FireInterval => fireInterval;
+        public int MagazineSize => magazineSize;
+        public int MaxReserve => maxReserve;
+
         // CONFIG DATA
         [Tooltip("Auto-generated UUID for saving/loading. Clear this field if you want to generate a new one.")]
         [SerializeField] string itemID = null;
@@ -38,10 +49,6 @@ namespace Rambler.Combat
         // STATE
         static Dictionary<string, Weapon> itemLookupCache;
 
-        void Start()
-        {
-            activeWeapon = equippedPrefab.GetComponentInChildren<ActiveWeapon>();
-        }           
 
         public static Weapon GetFromID(string itemID)
         {

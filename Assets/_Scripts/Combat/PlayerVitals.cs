@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using Rambler.Core;
 using TMPro;
@@ -25,8 +25,7 @@ namespace Rambler.Combat
        float playerMaxEnergy = 100;              
        float playerMaxHP;      
        float playerCurEnergy;  
-       float playerCurHP;
-       float fillDecrease;
+       float shownHealth = -1f;
       
 
        void Start()
@@ -39,7 +38,6 @@ namespace Rambler.Combat
                 }
             }
             playerMaxHP = health.healthPoints.value;
-            playerCurHP = health.healthPoints.value;
             MaxEnergy();
        }
 
@@ -50,15 +48,7 @@ namespace Rambler.Combat
                 ReduceEnergy();
             }            
            
-            if (playerCurHP <= 0f)
-            {
-                playerCurHP = 0f;
-                health.HealthCheck();
-                if (health.IsDead() == true)
-                {
-                    return;
-                }
-            }
+            SyncHealthBar();
 
             if (playerCurEnergy <= 0)
             {
@@ -83,18 +73,31 @@ namespace Rambler.Combat
             healthbarFill = healthBar;
             energybarFill = energyBar;
             if (energybarFill != null) energybarFill.fillAmount = playerCurEnergy / playerMaxEnergy;
+            shownHealth = -1f;
+            SyncHealthBar();
         }
 
+        //Health calls this when hit. The bar now follows Health's own value (see SyncHealthBar), which already
+        //includes cover and every other modifier, so there is nothing to subtract here.
         public void TakeDamage(float weaponDamage)
         {
-            fillDecrease = weaponDamage / playerMaxHP;
-            if (healthbarFill != null) healthbarFill.fillAmount -= fillDecrease;
-        }      
+            SyncHealthBar();
+        }
+
+        //The health bar shows Health's real value, so it can't drift away from it
+        void SyncHealthBar()
+        {
+            if (healthbarFill == null || health == null || playerMaxHP <= 0f) return;
+            float hp = health.healthPoints.value;
+            if (Mathf.Approximately(hp, shownHealth)) return;
+            shownHealth = hp;
+            healthbarFill.fillAmount = Mathf.Clamp01(hp / playerMaxHP);
+        }
 
         public void MaxHealth()
         {
             health.healthPoints.value = playerMaxHP;  
-            if (healthbarFill != null) healthbarFill.fillAmount = 1;         
+            SyncHealthBar();
         }        
 
         void MaxEnergy()
@@ -110,6 +113,7 @@ namespace Rambler.Combat
             if (energybarFill != null) energybarFill.fillAmount = fillEnergy;
         }
 
+        //Health saves the real value and the bar follows it; kept so old saves still load
         public object CaptureState()
         {
             return healthbarFill != null ? healthbarFill.fillAmount : 1f;
@@ -117,7 +121,7 @@ namespace Rambler.Combat
 
         public void RestoreState(object state)
         {
-            if (healthbarFill != null) healthbarFill.fillAmount = (float)state;
+            shownHealth = -1f; //Redraw from Health on the next frame
         }
     }
 }

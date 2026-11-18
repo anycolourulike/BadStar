@@ -23,6 +23,9 @@ MonoBehaviour:
   isRifle: 0
   isMelee: 0
   isEMP: 0
+  fireInterval: 0.12
+  magazineSize: 0
+  maxReserve: 0
   itemID: 0283dd68-d444-4fac-abb5-af5bc76913b6
   displayName: SMG
   description: 

@@ -23,6 +23,9 @@ MonoBehaviour:
   isRifle: 1
   isMelee: 0
   isEMP: 0
+  fireInterval: 0.2
+  magazineSize: 0
+  maxReserve: 0
   itemID: 5546b155-5ff6-480d-94ae-7571be5882c2
   displayName: Rifle
   description: 

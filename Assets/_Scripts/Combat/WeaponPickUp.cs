@@ -47,9 +47,8 @@ namespace Rambler.Combat
 
         void Start()
         {
-            var playerCore = GameObject.Find("PlayerCore");
-            playerSelector = playerCore.GetComponent<PlayerSelector>();
-            UpdatePlayer(playerSelector.activePlayer);
+            if (playerSelector == null) playerSelector = FindObjectOfType<PlayerSelector>();
+            if (playerSelector != null) UpdatePlayer(playerSelector.activePlayer);
 
             if (prompt != null)
             {
@@ -108,21 +107,25 @@ namespace Rambler.Combat
 
         public void PickUpItem()
         {
-            UpdatePlayer(playerSelector.activePlayer);
-            if (activePlayer.name == "Hayes")
+            if (playerSelector != null) UpdatePlayer(playerSelector.activePlayer);
+            if (activePlayer == null || inventory == null) return;
+
+            //Hayes and Rambler hold their own versions of each gun; use one only if this pickup has it set
+            Weapon toAdd = weaponConfig;
+            if (activePlayer.name == "Hayes" && hayesWeaponConfig != null) toAdd = hayesWeaponConfig;
+            else if (activePlayer.name == "Rambler" && ramblerWeaponConfig != null) toAdd = ramblerWeaponConfig;
+            if (toAdd == null)
             {
-                weaponConfig = hayesWeaponConfig;
-            }
-            else if(activePlayer.name == "Rambler")
-            {
-                weaponConfig = ramblerWeaponConfig;
+                Debug.LogWarning("WeaponPickUp " + name + " has no weapon set for " + activePlayer.name);
+                return;
             }
 
             //Inventory raises inventoryUpdated, which redraws the inventory UI
-            bool foundSlot = inventory.AddToFirstEmptySlot(weaponConfig, number);
+            bool foundSlot = inventory.AddToFirstEmptySlot(toAdd, number);
             if (foundSlot)
             {
-                fighter.weaponPickedUp = weaponConfig;
+                weaponConfig = toAdd;
+                if (fighter != null) fighter.weaponPickedUp = toAdd;
                 this.gameObject.SetActive(false);
             }
         }
@@ -130,8 +133,8 @@ namespace Rambler.Combat
         void UpdatePlayer(GameObject newPlayer)
         {
             activePlayer = newPlayer;
-            fighter = activePlayer.GetComponent<Fighter>();
-            inventory = activePlayer.GetComponent<Inventory>();
+            fighter = activePlayer != null ? activePlayer.GetComponent<Fighter>() : null;
+            inventory = activePlayer != null ? activePlayer.GetComponent<Inventory>() : null;
             playerCollidersInside = 0;
             ShowPrompt(false);
         }

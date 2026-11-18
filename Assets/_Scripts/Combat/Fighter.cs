@@ -50,6 +50,29 @@ namespace Rambler.Combat
         AIController aiCon;
         Inventory inv;
 
+        //Ammo each gun had when last put away, by weapon asset name, so switching guns keeps their counts (saved too)
+        readonly System.Collections.Generic.Dictionary<string, AmmoRecord> ammoByWeapon =
+            new System.Collections.Generic.Dictionary<string, AmmoRecord>();
+
+        [System.Serializable]
+        struct AmmoRecord
+        {
+            public int clip;
+            public int reserve;
+        }
+
+        [System.Serializable]
+        class SaveRecord
+        {
+            public string weapon;
+            public System.Collections.Generic.List<string> ammoWeapons = new System.Collections.Generic.List<string>();
+            public System.Collections.Generic.List<int> ammoClips = new System.Collections.Generic.List<int>();
+            public System.Collections.Generic.List<int> ammoReserves = new System.Collections.Generic.List<int>();
+        }
+
+        //Seconds between attacks for the current weapon: the Weapon asset's fireInterval, or timeBetweenAttacks
+        public float AttackInterval => weaponConfig != null && weaponConfig.FireInterval > 0f ? weaponConfig.FireInterval : timeBetweenAttacks;
+
         WeaponIK weaponIk;
         FieldOfView FOV;
         Animator anim;
@@ -87,7 +110,9 @@ namespace Rambler.Combat
             enemyAI = GetComponent<EnemyAI>();
             if (weaponConfig == null)
             {
-                EquipWeapon(lastWeaponUsed);
+                //Nothing set: the last weapon used, or bare hands
+                if (lastWeaponUsed != null) EquipWeapon(lastWeaponUsed);
+                else EquipUnarmed();
             }
             else
             {
@@ -101,7 +126,6 @@ namespace Rambler.Combat
                     EquipUnarmed();
                 }                                
             }
-            ActiveWeaponInit();
         }
 
         void Update()
@@ -146,7 +170,7 @@ namespace Rambler.Combat
             if (this.gameObject.CompareTag("Player") && enemyPos.gameObject.CompareTag("Companion")) return;
             if (this.gameObject.CompareTag("Companion") && enemyPos.gameObject.CompareTag("Player")) return;
 
-            if (timeSinceLastAttack > timeBetweenAttacks)
+            if (timeSinceLastAttack > AttackInterval)
             {
                 if (HasProjectile())
                 {
@@ -157,19 +181,19 @@ namespace Rambler.Combat
                     }
                     else
                     {
-                        if (timeSinceLastAttack < 0.5f) return;
                         if (activeWeapon.CurClip > 0)
                         {
                             Vector3 targetVector = GetEnemyLocation() + Vector3.up / 1.1f;
                             activeWeapon.LaunchProjectile(activeWeapon.MuzPos(), targetVector);
                             timeSinceLastAttack = 0f;
 
-                            switch (weaponConfig.weaponTitle)
+                            //Titles vary in case ("pistol", "Pistol Hayes" uses "Pistol"), so compare lower-case
+                            switch (weaponConfig.weaponTitle != null ? weaponConfig.weaponTitle.ToLowerInvariant() : "")
                             {
                                 case "pistol":
                                     AudioManager.PlayWeaponSound(weaponSFX: AudioManager.WeaponSound.pistolShoot, activeWeapon.transform.position);
                                     break;
-                                case "SMG":
+                                case "smg":
                                     AudioManager.PlayWeaponSound(weaponSFX: AudioManager.WeaponSound.SMGShoot, activeWeapon.transform.position);
                                     break;
                                 case "rifle":
@@ -194,6 +218,7 @@ namespace Rambler.Combat
 
         public void EquipWeapon(Weapon weapon)
         {
+            if (weapon == null) return;
             //A medkit is used, not held: heal, spend one, and keep the current weapon in hand
             if (weapon.isMedKit == true)
             {
@@ -208,16 +233,18 @@ namespace Rambler.Combat
                 return;
             }
 
+            RememberAmmo(); //The gun being put away keeps its counts for next time
             DestroyOldWeapon(handTransform: handTransform);
             weaponConfig = weapon;
 
             Spawn(handTransform: handTransform, animator: anim);
+            if (activeWeapon == null) return; //Weapon prefab without an ActiveWeapon
             activeWeapon.SetRigController = rigController;
-            AssignAmmo();
-            if (this.gameObject.CompareTag("Enemy"))
-            {
-                activeWeapon.FullAmmo();
-            }
+            //Enemies always get a fresh gun (unlimited reserve); everyone else gets back what this gun had
+            AmmoRecord ammo = default;
+            bool known = !CompareTag("Enemy") && ammoByWeapon.TryGetValue(weapon.name, out ammo);
+            if (known) activeWeapon.Setup(weapon, gameObject, ammo.clip, ammo.reserve);
+            else activeWeapon.Setup(weapon, gameObject, -1, 0);
             if (weaponConfig.isMelee)
             {
                 mover.RigWeaponUnequipped();
@@ -247,15 +274,15 @@ namespace Rambler.Combat
             if (playerController != null) //AI fighters have no ammo HUD
             {
                 playerController.DeactivateAmmoCounter();
-                activeWeapon.AmmoUIInit();
+                if (activeWeapon != null) activeWeapon.AmmoUIInit();
             }
         }
 
         public void EquipPickedUpWeapon()
         {
-            weaponConfig = weaponPickedUp;
-            if (weaponConfig.isMedKit) return;
-            EquipWeapon(weaponConfig);
+            //Don't set weaponConfig first: EquipWeapon files the old gun's ammo under weaponConfig's name
+            if (weaponPickedUp == null || weaponPickedUp.isMedKit) return;
+            EquipWeapon(weaponPickedUp);
         }
 
         public void PlayEquipedWeaponAnim()
@@ -313,9 +340,16 @@ namespace Rambler.Combat
             return health != null && health.IsDead();
         }
 
+        //Refills the current gun's reserve
         public void AssignAmmo()
         {
-            activeWeapon.FullAmmo();
+            if (activeWeapon != null) activeWeapon.FullAmmo();
+        }
+
+        void RememberAmmo()
+        {
+            if (activeWeapon == null || weaponConfig == null || weaponConfig.isMelee) return;
+            ammoByWeapon[weaponConfig.name] = new AmmoRecord { clip = activeWeapon.CurClip, reserve = activeWeapon.Reserve };
         }
 
         public void CancelNav()
@@ -323,16 +357,42 @@ namespace Rambler.Combat
             mover.CancelNav();
         }
 
+        //Saves the weapon in hand and every gun's ammo
         public object CaptureState()
         {
-            Debug.Log("weaponSaved");
-            return weaponConfig.name;
+            RememberAmmo();
+            var record = new SaveRecord { weapon = weaponConfig != null ? weaponConfig.name : null };
+            foreach (var pair in ammoByWeapon)
+            {
+                record.ammoWeapons.Add(pair.Key);
+                record.ammoClips.Add(pair.Value.clip);
+                record.ammoReserves.Add(pair.Value.reserve);
+            }
+            return record;
         }
 
         public void RestoreState(object state)
         {
-            string weaponName = (string)state;
+            //Older saves stored just the weapon name
+            string weaponName = state as string;
+            if (state is SaveRecord record)
+            {
+                weaponName = record.weapon;
+                ammoByWeapon.Clear();
+                for (int i = 0; i < record.ammoWeapons.Count; i++)
+                {
+                    ammoByWeapon[record.ammoWeapons[i]] = new AmmoRecord { clip = record.ammoClips[i], reserve = record.ammoReserves[i] };
+                }
+            }
+            if (string.IsNullOrEmpty(weaponName)) return;
             Weapon weapon = UnityEngine.Resources.Load<Weapon>(weaponName);
+            if (weapon == null)
+            {
+                Debug.LogWarning(name + ": saved weapon " + weaponName + " not found in Resources; keeping the current one");
+                return;
+            }
+            //Re-equipping would store the current gun's counts over the restored ones, so forget the hand first
+            weaponConfig = null;
             EquipWeapon(weapon);
         }
 
@@ -464,7 +524,7 @@ namespace Rambler.Combat
 
         void ActiveWeaponInit()
         {
-            activeWeapon = weaponRef.GetComponentInChildren<ActiveWeapon>();
+            activeWeapon = weaponRef != null ? weaponRef.GetComponentInChildren<ActiveWeapon>() : null;
         }
 
         void StopMovement(GameObject player)

@@ -331,8 +331,15 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
         void OnParticleCollision(GameObject particleProj)
         {           
             var proj = particleProj.GetComponent<Projectile>();
-            damage = proj.GetDamage();
-            TakeDamage(damage);
+            if (proj == null) return; //Some other particle effect with collisions on, not a bullet
+            if (proj.Owner == gameObject) return; //Leaving the shooter's own body: let it fly on
+
+            //A shooter's own side stops the bullet but takes no damage
+            if (proj.CanHurt(gameObject))
+            {
+                damage = proj.GetDamage();
+                TakeDamage(damage);
+            }
 
             if (proj.HitEffect() != null)
             {                    

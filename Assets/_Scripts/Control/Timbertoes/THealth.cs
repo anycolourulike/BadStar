@@ -249,8 +249,12 @@ namespace Rambler.Attributes // To Do Stop Movement
         {
             var proj = particleProj.GetComponent<Projectile>();
             if (proj == null) return;
-            damage = proj.GetDamage();
-            TakeDamage(damage);
+            if (proj.Owner == gameObject) return; //Leaving the shooter's own body: let it fly on
+            if (proj.CanHurt(gameObject)) //A shooter's own side stops the bullet but takes no damage
+            {
+                damage = proj.GetDamage();
+                TakeDamage(damage);
+            }
 
             if (proj.HitEffect() != null)
             {
