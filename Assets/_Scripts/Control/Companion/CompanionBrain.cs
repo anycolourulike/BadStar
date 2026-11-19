@@ -70,9 +70,13 @@ namespace Rambler.Control
         public float MaxSpeed => mover != null && mover.maxSpeed > 0f ? mover.maxSpeed : agent.speed;
         public Vector3 Eye => transform.position + Vector3.up * eyeHeight;
 
-        //Something to fight: seen recently, alive, and the player isn't running off without us
+        //Something to fight (or, without a gun, to hide from): seen recently, alive, and the player isn't running off without us
         public bool HasEnemy =>
             Target != null && IsAlive(Target) && Time.time - LastSeenTime <= memory && LeaderInReach;
+
+        //Has a gun. Unarmed or melee companions hide instead of fighting: charging gunmen just gets them killed
+        public bool CanShoot =>
+            fighter != null && fighter.weaponConfig != null && !fighter.weaponConfig.isMelee && fighter.weaponConfig.projectile != null;
 
         public bool LeaderInReach =>
             Leader == null || Vector3.Distance(transform.position, Leader.transform.position) <= leash;
