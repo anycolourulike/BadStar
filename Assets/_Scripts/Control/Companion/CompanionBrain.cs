@@ -134,7 +134,8 @@ namespace Rambler.Control
         void StartTree()
         {
             if (tree == null || treeRunning) return;
-            treeRunning = tree.StartBehavior();
+            //StartBehavior can report false while the tree did start, which made this retry every frame
+            treeRunning = tree.StartBehavior() || tree.IsRunning();
         }
 
         void StopTree()
@@ -155,6 +156,8 @@ namespace Rambler.Control
                 return;
             }
             if (IsControlled) return;
+            //The tree can end on its own (e.g. a task fails out); a living companion always restarts it
+            if (treeRunning && tree != null && !tree.IsRunning()) treeRunning = false;
             if (!treeRunning) StartTree(); //e.g. the tree wasn't ready the first time
 
             if (Time.time >= nextScan)
