@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System.Collections;
 using UnityEditor;
 using UnityEngine;
@@ -20,6 +20,7 @@ public class TestEnvironment : MonoBehaviour
     {
         ("CrashSite", 2),
         ("Mine", 3),
+        ("Sandbox", 3), //Test scene: borrows Mine's scene number (cave ambience, Mine save slot)
     };
 
     public static bool Enabled => EditorPrefs.GetBool(EnabledKey, true);
