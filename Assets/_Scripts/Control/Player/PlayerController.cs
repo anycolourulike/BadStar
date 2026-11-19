@@ -110,6 +110,9 @@ namespace Rambler.Control
 
         void Update()
         {
+            //Walking off stands the character up instead of sliding along in the kneeling idle
+            if (isCrouching && agent != null && agent.enabled && agent.velocity.sqrMagnitude > 0.25f) StandUp();
+
             if (shakeTimer > 0)
             {
               shakeTimer -= Time.deltaTime;
@@ -462,28 +465,27 @@ namespace Rambler.Control
 
         public void ToggleCrouch()
         {
-            isCrouching = !isCrouching;
             //Fire the trigger once per toggle, not every frame
-            if (isCrouching)
-            {
-                Crouch();
-            }
-            else
-            {
-                StandUp();
-            }
+            if (isCrouching) StandUp();
+            else Crouch();
         }
 
         public void Crouch()
         {
+            isCrouching = true;
+            anim.ResetTrigger("StandUp");
             anim.SetTrigger("Crouch");
             fighter.RigWeightToZero();
         }
 
+        //Leaves the kneeling idle; without this the crouch idle loops until something else interrupts it
         public void StandUp()
         {
-            //anim.SetTrigger("StandUp");
-            //fighter.RigWeightToOne();
+            isCrouching = false;
+            anim.ResetTrigger("Crouch");
+            anim.SetTrigger("StandUp");
+            //Aim the gun again, as Fighter does when a ranged weapon is equipped
+            if (fighter.weaponConfig != null && !fighter.weaponConfig.isMelee) fighter.RigWeightToOne();
         }
 
         public void EquipWeaponAfterMedKitPU()
