@@ -181,8 +181,9 @@ namespace Rambler.Movement
                 //Ground speed, not just the forward part: a squad member side-stepping while it turns still steps
                 Vector3 flat = navMeshAgent.velocity; flat.y = 0f;
                 speed = flat.magnitude;
-                //Humanoid clips move at their natural speed times the avatar's size, so compare in the clips' scale
-                speed /= animator.humanScale;
+                //Humanoid clips move at their natural speed times the avatar's size and the character's scale
+                //(the guards are scaled to 0.55), so compare in the clips' own scale
+                speed /= animator.humanScale * Mathf.Max(0.01f, transform.lossyScale.y);
                 if (hasLocoSpeed)
                     animator.SetFloat(LocoSpeedHash, Mathf.Clamp(speed / Mathf.Max(0.1f, animTopSpeed), 1f, maxAnimSpeedUp));
             }
