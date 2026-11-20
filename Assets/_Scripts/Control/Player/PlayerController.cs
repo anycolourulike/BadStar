@@ -465,6 +465,13 @@ namespace Rambler.Control
 
         public void ToggleCrouch()
         {
+            //In cover the cover pose rules: crouch behind high cover, and low cover is already crouched
+            var cover = GetComponent<Rambler.Combat.CoverUser>();
+            if (cover != null && cover.InCover)
+            {
+                cover.ToggleCrouchInCover();
+                return;
+            }
             //Fire the trigger once per toggle, not every frame
             if (isCrouching) StandUp();
             else Crouch();
