@@ -75,7 +75,9 @@ namespace Rambler.Combat
         //Stands the character out of its cover pose while it does something else (e.g. throws a grenade)
         public bool PoseSuspended { get; set; }
         //The fire rhythm runs for AI only; the character the player controls fires when told to
-        bool RhythmActive => useFireRhythm && !CompareTag("Player");
+        bool RhythmActive => useFireRhythm && !CompareTag("Player") && !Suppressing;
+        //Laying down covering fire for a squadmate who is moving: stays out and keeps shooting instead of hiding
+        public bool Suppressing { get; set; }
         //In cover with a target but in the hidden part of the fire rhythm: Fighter neither aims nor fires
         public bool HoldingFire => current != null && RhythmActive && fighter != null && fighter.EnemyPos != null && !exposed;
 

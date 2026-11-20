@@ -72,7 +72,8 @@ namespace Rambler.Control
 
         //Something to fight (or, without a gun, to hide from): seen recently, alive, and the player isn't running off without us
         public bool HasEnemy =>
-            Target != null && IsAlive(Target) && Time.time - LastSeenTime <= memory && LeaderInReach;
+            SquadOrders.WeaponsFree && Target != null && IsAlive(Target) && Time.time - LastSeenTime <= memory &&
+            (LeaderInReach || SquadOrders.HoldPosition); //Holding a post: fight from it however far away the player is
 
         //Has a gun. Unarmed or melee companions hide instead of fighting: charging gunmen just gets them killed
         public bool CanShoot =>

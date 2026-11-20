@@ -91,6 +91,7 @@ namespace Rambler.Movement
 
         void WeaponIKWeight()
         {           
+            if (weaponIK == null) return; //Unarmed characters (e.g. the scientist) have no aim rig
             if(navMeshAgent.velocity.magnitude > 0.15f)
             {                   
                 weaponIK.AimWeight = 0f;
@@ -162,7 +163,7 @@ namespace Rambler.Movement
         public void CancelNav()
         {            
             navMeshAgent.isStopped = true;
-            if (!rb.isKinematic) rb.velocity = Vector3.zero; //Kinematic bodies have no velocity to clear
+            if (rb != null && !rb.isKinematic) rb.velocity = Vector3.zero; //Kinematic bodies have no velocity to clear
         }
                
         private void UpdateAnimator()

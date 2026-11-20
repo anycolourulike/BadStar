@@ -25,6 +25,8 @@ namespace Rambler.Control
     {
         static readonly List<EnemyAI> all = new();
         public static IReadOnlyList<EnemyAI> All => all;
+        //Running to a flanking position while the others give covering fire (EnemyAttack)
+        public bool Flanking { get; set; }
 
         [Header("Senses")]
         [Tooltip("How far it can see while calm (idle, patrolling, searching).")]
@@ -293,9 +295,15 @@ namespace Rambler.Control
             }
         }
 
+        //Being talked to (Mission.Distractor): only notices what's right beside it
+        public bool Distracted { get; set; }
+
         bool CanSee(GameObject other, float dist)
         {
             bool alert = engaged;
+            //A squad member on a visitor pass isn't an intruder until the alarm goes up
+            if (!SquadOrders.Alarm && Rambler.Mission.Disguise.IsDisguised(other)) return false;
+            if (Distracted && !alert && dist > closeSense) return false;
             if (dist > (alert ? combatSightRange : sightRange)) return false;
             if (!alert && dist > closeSense)
             {

@@ -32,6 +32,26 @@ namespace Rambler.Combat
         public int MagazineSize => magazineSize;
         public int MaxReserve => maxReserve;
 
+        [Header("Kick and bursts (0 = the default for this weapon type)")]
+        [Tooltip("Shots per burst, picked between x and y each burst. 0 = default (pistol 2-3, SMG 4-6, rifle 3-5, shotgun 1).")]
+        [SerializeField] Vector2Int burstShots = Vector2Int.zero;
+        [Tooltip("Seconds between bursts while the shooter brings the muzzle back on target. 0 = default 0.35-0.8.")]
+        [SerializeField] Vector2 burstPause = Vector2.zero;
+        [Tooltip("Spread in degrees with the gun settled. 0 = default for the type.")]
+        [Min(0f)] [SerializeField] float baseSpread = 0f;
+        [Tooltip("Degrees of muzzle climb and spread added by each shot. 0 = default for the type.")]
+        [Min(0f)] [SerializeField] float kickPerShot = 0f;
+
+        //Defaults by weapon type, used where a field is left at 0
+        string Kind => isMelee ? "melee" : isPistol ? "pistol" : isRifle ? "rifle" : weaponTitle != null ? weaponTitle.ToLowerInvariant() : "";
+        public Vector2Int BurstShots => burstShots.y > 0 ? burstShots :
+            Kind.Contains("pistol") ? new Vector2Int(2, 3) : Kind.Contains("smg") ? new Vector2Int(4, 6) :
+            Kind.Contains("shotgun") || isGrenadeLauncher ? new Vector2Int(1, 1) : new Vector2Int(3, 5);
+        public Vector2 BurstPause => burstPause.y > 0f ? burstPause : new Vector2(0.35f, 0.8f);
+        public float BaseSpread => baseSpread > 0f ? baseSpread : Kind.Contains("rifle") ? 0.8f : Kind.Contains("pistol") ? 1.5f : 2f;
+        public float KickPerShot => kickPerShot > 0f ? kickPerShot :
+            Kind.Contains("pistol") ? 2.2f : Kind.Contains("smg") ? 1.3f : Kind.Contains("shotgun") ? 4f : 1.6f;
+
         // CONFIG DATA
         [Tooltip("Auto-generated UUID for saving/loading. Clear this field if you want to generate a new one.")]
         [SerializeField] string itemID = null;

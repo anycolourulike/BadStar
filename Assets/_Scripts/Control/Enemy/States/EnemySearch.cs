@@ -24,7 +24,7 @@ public class EnemySearch : IState
         spotsChecked = 0;
         step = Step.GoToLead;
         destination = ai.LastKnownPosition;
-        if (ai.isActiveAndEnabled && ai.StateName == "Search") ai.MoveTo(destination, 0.8f);
+        if (ai.isActiveAndEnabled && ai.StateName == "Search") ai.MoveTo(destination, 0.4f);
     }
 
     public void OnEnter()
@@ -32,7 +32,7 @@ public class EnemySearch : IState
         ai.HoldFire();
         ai.LeadFollowed();
         Restart();
-        ai.MoveTo(destination, 0.8f);
+        ai.MoveTo(destination, 0.4f);
     }
 
     public void OnExit() => ai.LeadFollowed();

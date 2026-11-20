@@ -52,9 +52,12 @@ namespace Rambler.Control
         public GuardSocial Partner => partner;
 
         //Settled at its post and nothing on its mind
-        bool Calm => ai != null && ai.isActiveAndEnabled && !ai.IsDead && ai.StateName == "Idle" && !ai.TargetVisible &&
+        //Patrolling guards count too while stopped at a waypoint (a long stop is a break)
+        bool Calm => ai != null && ai.isActiveAndEnabled && !ai.IsDead && (ai.StateName == "Idle" || ai.StateName == "Patrol") && !ai.TargetVisible &&
                      !ai.HasLead && ai.TimeSinceSeen > 5f && ai.Agent != null && ai.Agent.velocity.sqrMagnitude < 0.01f;
-        bool Ready => Calm && calmSince >= 0f && Time.time - calmSince >= settleTime;
+        //A patrol stop has to last a while before it's a break (short waypoint pauses don't holster the gun)
+        float SettleNeeded => ai != null && ai.StateName == "Patrol" ? Mathf.Max(settleTime, 3.5f) : settleTime;
+        bool Ready => Calm && calmSince >= 0f && Time.time - calmSince >= SettleNeeded;
 
         void Awake()
         {
@@ -83,7 +86,7 @@ namespace Rambler.Control
                 return;
             }
             if (calmSince < 0f) calmSince = Time.time;
-            if (Time.time - calmSince < settleTime) return;
+            if (Time.time - calmSince < SettleNeeded) return;
 
             //The partner walked off or was woken up
             if (partner != null && (partner.partner != this || !partner.Ready)) Unpair();

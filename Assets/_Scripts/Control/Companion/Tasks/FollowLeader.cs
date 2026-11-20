@@ -48,7 +48,8 @@ namespace Rambler.Control.CompanionTasks
         {
             if (brain == null) return TaskStatus.Failure;
             var leader = brain.Leader;
-            if (leader == null || brain.IsControlled)
+            //Holding where the player left it (a mission's plan), or nobody to follow
+            if (leader == null || brain.IsControlled || SquadOrders.HoldPosition)
             {
                 Halt();
                 return TaskStatus.Running;

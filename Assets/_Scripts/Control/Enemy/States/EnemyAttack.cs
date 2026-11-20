@@ -6,10 +6,16 @@ using Rambler.Control;
 //take cover in range > shoot from it for a while > clear the target's position with a grenade >
 //wait for the blast > push to cover closer to the target (or straight forward if there is none) > shoot again.
 //Without grenades it pushes straight after shooting.
+//With squadmates on the same target it works the flanks instead: one guard runs (firing on the move) to cover at a wide
+//angle on the target while the others stay out of cover and give covering fire; then the next one goes.
 public class EnemyAttack : IState
 {
     readonly EnemyAI ai;
-    enum Phase { Moving, Engage, Clear, Blast }
+    enum Phase { Moving, Engage, Clear, Blast, Flank }
+    const float FlankAngle = 55f;    //Degrees round the target from where it is now
+    const float FlankSearch = 18f;   //Furthest cover it will run to
+    const float FlankCooldown = 15f; //Seconds between flanks on the same target
+    static readonly System.Collections.Generic.Dictionary<GameObject, float> nextFlank = new System.Collections.Generic.Dictionary<GameObject, float>();
     Phase phase;
     Vector3 destination;
     float speed;
@@ -29,6 +35,8 @@ public class EnemyAttack : IState
 
     public void OnExit()
     {
+        EndFlank();
+        if (ai.Cover != null) ai.Cover.Suppressing = false;
         ai.HoldFire();
     }
 
@@ -41,6 +49,7 @@ public class EnemyAttack : IState
             case Phase.Engage: Engage(target); break;
             case Phase.Clear: Clear(); break;
             case Phase.Blast: Blast(); break;
+            case Phase.Flank: Flank(target); break;
         }
     }
 
@@ -60,6 +69,21 @@ public class EnemyAttack : IState
             {
                 toCover = true;
                 destination = point.transform.position;
+                StartPhase(Phase.Moving);
+                return;
+            }
+        }
+
+        //Cover to cover: a push with no cover closer in holds here and keeps fighting
+        if (push) { StartEngage(); return; }
+        //First contact with no cover in range: any cover facing the threat nearby, to fight from protection
+        if (cover != null)
+        {
+            var anyCover = cover.FindCover(threat, ai.transform.position, ai.CoverSearchRadius * 1.5f, float.MaxValue, 2.5f, float.MaxValue);
+            if (anyCover != null && cover.MoveToCover(anyCover, speed))
+            {
+                toCover = true;
+                destination = anyCover.transform.position;
                 StartPhase(Phase.Moving);
                 return;
             }
@@ -114,7 +138,10 @@ public class EnemyAttack : IState
 
     void Engage(GameObject target)
     {
-        bool canShoot = target != null && ai.TargetVisible && ai.InRange(target);
+        //A squadmate is running to a flank: stay out and keep their target's head down
+        bool suppressing = MateFlanking(target);
+        if (ai.Cover != null) ai.Cover.Suppressing = suppressing;
+        bool canShoot = target != null && ai.InRange(target) && (ai.TargetVisible || suppressing);
         if (canShoot)
         {
             ai.Shoot(target);
@@ -137,7 +164,80 @@ public class EnemyAttack : IState
             engageUntil = Time.time + Random.Range(ai.EngageTime.x, ai.EngageTime.y); //Already close: keep fighting here
             return;
         }
+        if (ai.Cover != null) ai.Cover.Suppressing = false;
+        if (TryFlank(target)) return;
         ClearThenPush();
+    }
+
+    // ---------- Flanking ----------
+
+    bool MateFlanking(GameObject target)
+    {
+        foreach (var mate in EnemyAI.All)
+            if (mate != ai && mate.Flanking && !mate.IsDead && mate.Target == target) return true;
+        return false;
+    }
+
+    //Run to cover with a wide angle on the target while a squadmate on the same target covers it
+    bool TryFlank(GameObject target)
+    {
+        if (target == null || ai.Cover == null || MateFlanking(target)) return false;
+        if (!ai.Cover.InCover) return false; //Cover to cover: only breaks from cover
+        if (nextFlank.TryGetValue(target, out float at) && Time.time < at) return false;
+        bool covered = false;
+        foreach (var mate in EnemyAI.All)
+            if (mate != ai && !mate.IsDead && mate.Target == target && mate.StateName == "Attack") { covered = true; break; }
+        if (!covered) return false;
+
+        Vector3 t = target.transform.position;
+        Vector3 fromNow = ai.transform.position - t; fromNow.y = 0f;
+        float range = ai.AttackRange * 0.9f;
+        CoverPoint best = null; float bestScore = float.MaxValue;
+        foreach (var p in CoverPoint.All)
+        {
+            if (!p.IsFree) continue;
+            Vector3 pos = p.transform.position;
+            if (Mathf.Abs(pos.y - ai.transform.position.y) > 2f) continue;
+            float run = Vector3.Distance(pos, ai.transform.position);
+            if (run > FlankSearch || run < 3f) continue;
+            Vector3 fromP = pos - t; fromP.y = 0f;
+            float dist = fromP.magnitude;
+            if (dist > range || dist < 4f) continue;
+            if (Vector3.Dot(new Vector3(p.Facing.x, 0f, p.Facing.z).normalized, -fromP.normalized) < 0.35f) continue; //Its cover must face the target
+            float angle = Vector3.Angle(fromNow, fromP);
+            if (angle < FlankAngle) continue;
+            float score = Mathf.Abs(angle - 90f) + run * 1.5f; //Near a right angle, not too far to run
+            if (score < bestScore) { bestScore = score; best = p; }
+        }
+        if (best == null || !ai.Cover.MoveToCover(best, 1f)) return false;
+        nextFlank[target] = Time.time + FlankCooldown;
+        ai.Flanking = true;
+        ai.Fighter.FireOnTheMove = true;
+        ai.Shoot(target); //Run and gun
+        destination = best.transform.position;
+        toCover = true;
+        StartPhase(Phase.Flank);
+        return true;
+    }
+
+    void Flank(GameObject target)
+    {
+        if (target != null && ai.TargetVisible) ai.Shoot(target); else ai.HoldFire();
+        bool there = ai.Cover.InCover;
+        if (there || Time.time - phaseStarted > 9f || !ai.Cover.IsMovingToCover && !there)
+        {
+            EndFlank();
+            StartEngage();
+            return;
+        }
+        if (ai.Agent.isStopped) ai.Agent.isStopped = false; //A hit stops the agent; keep running
+    }
+
+    void EndFlank()
+    {
+        if (!ai.Flanking) return;
+        ai.Flanking = false;
+        if (ai.Fighter != null) ai.Fighter.FireOnTheMove = false;
     }
 
     //Grenade the target's position first if it can, otherwise push straight away

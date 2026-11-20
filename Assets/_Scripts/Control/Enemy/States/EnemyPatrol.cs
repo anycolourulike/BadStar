@@ -1,12 +1,13 @@
 using UnityEngine;
 using Rambler.Control;
 
-//Walks the patrol route, pausing at each waypoint
+//Walks the patrol route, pausing at each waypoint. A waypoint named "...Break..." is a long stop (a smoke or a chat).
 public class EnemyPatrol : IState
 {
     readonly EnemyAI ai;
     int index;
     float dwell;
+    const float BreakDwell = 12f;
 
     public EnemyPatrol(EnemyAI ai) => this.ai = ai;
 
@@ -37,7 +38,8 @@ public class EnemyPatrol : IState
             return;
         }
         dwell += Time.deltaTime;
-        if (dwell < ai.WaypointDwell) return;
+        bool isBreak = index < route.transform.childCount && route.transform.GetChild(index).name.Contains("Break");
+        if (dwell < (isBreak ? BreakDwell : ai.WaypointDwell)) return;
         dwell = 0f;
         index = route.GetNextIndex(index);
         ai.MoveTo(route.GetWaypoint(index), ai.PatrolSpeed);

@@ -130,18 +130,83 @@ namespace Rambler.Combat
             }
         }
 
+        // ---------- Kick and bursts ----------
+        //Each shot kicks the muzzle up and widens the spread; it settles back over time. Shots come in bursts with a
+        //pause between them while the shooter brings the gun back on target.
+        [Header("Kick and bursts")]
+        [Tooltip("Degrees per second the kick settles.")]
+        [SerializeField] float kickRecovery = 7f;
+        [SerializeField] float maxKick = 9f;
+        [Tooltip("Extra spread in degrees when firing on the move.")]
+        [SerializeField] float movingSpread = 4f;
+        float kick;
+        int burstShotsFired;
+        int burstSize;
+        float burstPauseUntil;
+
+        //Run and gun: keep moving (to a flank) and fire while doing it, instead of stopping to shoot
+        public bool FireOnTheMove { get; set; }
+        public float CurrentKick => kick;
+        public bool BetweenBursts => Time.time < burstPauseUntil;
+
+        void StartNewBurst()
+        {
+            var shots = weaponConfig != null ? weaponConfig.BurstShots : new Vector2Int(3, 5);
+            burstSize = UnityEngine.Random.Range(Mathf.Max(1, shots.x), Mathf.Max(1, shots.y) + 1);
+            burstShotsFired = 0;
+        }
+
+        //Where this shot actually goes: inside a cone that grows with the kick, climbing with it
+        Vector3 KickedAim(Vector3 from, Vector3 aim)
+        {
+            Vector3 dir = aim - from;
+            float dist = dir.magnitude;
+            if (dist < 0.01f) return aim;
+            dir /= dist;
+            float spread = (weaponConfig != null ? weaponConfig.BaseSpread : 1.5f) + kick;
+            var agent = mover != null ? mover.GetComponent<UnityEngine.AI.NavMeshAgent>() : null;
+            if (agent != null && agent.velocity.sqrMagnitude > 0.25f) spread += movingSpread;
+            Vector3 side = Vector3.Cross(Vector3.up, dir); if (side.sqrMagnitude < 1e-4f) side = Vector3.right; side.Normalize();
+            Vector3 up = Vector3.Cross(dir, side);
+            Vector2 r = UnityEngine.Random.insideUnitCircle * Mathf.Tan(spread * Mathf.Deg2Rad);
+            float climb = Mathf.Tan(kick * 0.5f * Mathf.Deg2Rad); //The muzzle rides up through a burst
+            Vector3 shot = dir + side * r.x + up * (r.y + climb);
+            return from + shot.normalized * dist;
+        }
+
+        void AfterShot()
+        {
+            kick = Mathf.Min(maxKick, kick + (weaponConfig != null ? weaponConfig.KickPerShot : 1.5f));
+            burstShotsFired++;
+            if (burstSize <= 0) StartNewBurst();
+            if (burstShotsFired >= burstSize)
+            {
+                var pause = weaponConfig != null ? weaponConfig.BurstPause : new Vector2(0.35f, 0.8f);
+                burstPauseUntil = Time.time + UnityEngine.Random.Range(pause.x, pause.y);
+                StartNewBurst();
+            }
+        }
+
         void Update()
         {
             timeSinceLastAttack += Time.deltaTime;
+            kick = Mathf.MoveTowards(kick, 0f, kickRecovery * Time.deltaTime);
             if (enemyPos == null) { return; }
             if (this.gameObject.CompareTag("Enemy")) { enemyPos = TargetCap.transform; }
             if (enemyPos.CompareTag("AIConversant")) return;
             if (attackDoor != null && attackDoor.State == Rambler.Ship.ShipDoorDamage.DamageState.Destroyed) { CancelTarget(); return; } //Nothing left to hit
             if (HoldTarget && IsTargetDead()) { CancelTarget(); return; }
+            if (FireOnTheMove)
+            {
+                //Running to a flank: shoot when in range, never stop for it
+                if (GetIsInRange()) AttackBehaviour();
+                return;
+            }
             if (coverUser != null && coverUser.IsMovingToCover) return; //Let it reach cover before chasing or shooting
             if (!GetIsInRange())
             {
-                mover.MoveTo(enemyPos.transform.position, 1f);
+                //Guards on EnemyAI move cover to cover under its control; they don't charge an out-of-range target
+                if (enemyAI == null || !enemyAI.isActiveAndEnabled) mover.MoveTo(enemyPos.transform.position, 1f);
             }
             else if(!this.gameObject.CompareTag("Player"))
             {
@@ -171,7 +236,8 @@ namespace Rambler.Combat
                 if (enemyAI != null && enemyAI.isActiveAndEnabled) blind = !enemyAI.TargetVisible;
                 else if (companionBrain != null && companionBrain.isActiveAndEnabled) blind = !companionBrain.TargetVisible;
                 else blind = FOV != null && FOV.canSeePlayer == false;
-                if (blind) return;
+                //Covering fire goes at the target's position whether or not it can be seen
+                if (blind && !(coverUser != null && coverUser.Suppressing)) return;
             }
 
             mover.FaceFlat(enemyPos.transform.position);
@@ -192,8 +258,11 @@ namespace Rambler.Combat
                     {
                         if (activeWeapon.CurClip > 0)
                         {
+                            if (BetweenBursts) return; //Bringing the muzzle back on target
                             Vector3 targetVector = GetEnemyLocation() + Vector3.up / 1.1f;
+                            targetVector = KickedAim(activeWeapon.MuzPos().position, targetVector);
                             activeWeapon.LaunchProjectile(activeWeapon.MuzPos(), targetVector);
+                            AfterShot();
                             timeSinceLastAttack = 0f;
 
                             //Titles vary in case ("pistol", "Pistol Hayes" uses "Pistol"), so compare lower-case
@@ -321,6 +390,7 @@ namespace Rambler.Combat
             GetComponent<ActionScheduler>().StartAction(this);
             if (combatTarget != null)
             {
+                if (enemyPos != combatTarget.transform) StartNewBurst(); //A new target starts a fresh burst
                 enemyPos = combatTarget.GetComponent<Transform>();
                 attackDoor = combatTarget.GetComponentInParent<Rambler.Ship.ShipDoorDamage>();
             }
