@@ -175,11 +175,6 @@ namespace Rambler.Control
             activePlayerCon.ReloadActiveWeapon();
         }
 
-        public void ActivateCrouch()
-        {
-            activePlayerCon.ToggleCrouch();
-        }
-
         public void ActivateShields()
         {
             activePlayerCon.ToggleShields();

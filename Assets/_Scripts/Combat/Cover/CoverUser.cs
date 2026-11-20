@@ -57,18 +57,6 @@ namespace Rambler.Combat
         public bool AutoSeek { get => seekCover; set => seekCover = value; }
         //Stands the character out of its cover pose while it does something else (e.g. throws a grenade)
         public bool PoseSuspended { get; set; }
-        //Crouched behind high cover (the player's crouch button): uses the low-cover pose until it shoots
-        //or leaves the point. Shooting still steps out round the edge, as a high wall can't be fired over.
-        public bool CrouchInHighCover { get; set; }
-        public bool InHighCover => current != null && current.Type == CoverPoint.CoverType.High;
-
-        //Crouch button while in cover: toggles crouching behind high cover. Returns false when not in high cover.
-        public bool ToggleCrouchInCover()
-        {
-            if (!InHighCover) return false;
-            CrouchInHighCover = !CrouchInHighCover;
-            return true;
-        }
 
         void Awake()
         {
@@ -150,8 +138,7 @@ namespace Rambler.Combat
             //Low cover: crouch facing the cover. High cover: back to the wall, looking out past the edge;
             //to shoot, step out past the edge and aim round the corner.
             bool shooting = fighter != null && fighter.EnemyPos != null;
-            //Crouched behind high cover counts as low cover until it shoots (it can't fire over a tall wall)
-            bool low = current.Type == CoverPoint.CoverType.Low || (CrouchInHighCover && !shooting);
+            bool low = current.Type == CoverPoint.CoverType.Low;
             bool left = current.Side == CoverPoint.CoverSide.Left;
             Vector3 spot = current.transform.position;
             if (!low && shooting) spot += OpenSide(current) * stepOut;
@@ -246,7 +233,6 @@ namespace Rambler.Combat
             if (current != null) current.Release(gameObject);
             if (heading != null) heading.Release(gameObject);
             current = null;
-            CrouchInHighCover = false; //The next cover starts in its own pose
             SetParams(false, false, false, false, false);
         }
 

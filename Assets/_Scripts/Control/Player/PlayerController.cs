@@ -51,7 +51,6 @@ namespace Rambler.Control
         Weapon weaponToEquip;
         float shakeTimer;        
         int interactions;
-        bool isCrouching;
         bool shieldsUp;
         bool shieldsShown = true; //Forces the first Update to apply the shield state
         bool isDead;
@@ -110,9 +109,6 @@ namespace Rambler.Control
 
         void Update()
         {
-            //Walking off stands the character up instead of sliding along in the kneeling idle
-            if (isCrouching && agent != null && agent.enabled && agent.velocity.sqrMagnitude > 0.25f) StandUp();
-
             if (shakeTimer > 0)
             {
               shakeTimer -= Time.deltaTime;
@@ -461,38 +457,6 @@ namespace Rambler.Control
                 pickUp = null;
                 ShowInteract(false);      
             }
-        }
-
-        public void ToggleCrouch()
-        {
-            //In cover the cover pose rules: crouch behind high cover, and low cover is already crouched
-            var cover = GetComponent<Rambler.Combat.CoverUser>();
-            if (cover != null && cover.InCover)
-            {
-                cover.ToggleCrouchInCover();
-                return;
-            }
-            //Fire the trigger once per toggle, not every frame
-            if (isCrouching) StandUp();
-            else Crouch();
-        }
-
-        public void Crouch()
-        {
-            isCrouching = true;
-            anim.ResetTrigger("StandUp");
-            anim.SetTrigger("Crouch");
-            fighter.RigWeightToZero();
-        }
-
-        //Leaves the kneeling idle; without this the crouch idle loops until something else interrupts it
-        public void StandUp()
-        {
-            isCrouching = false;
-            anim.ResetTrigger("Crouch");
-            anim.SetTrigger("StandUp");
-            //Aim the gun again, as Fighter does when a ranged weapon is equipped
-            if (fighter.weaponConfig != null && !fighter.weaponConfig.isMelee) fighter.RigWeightToOne();
         }
 
         public void EquipWeaponAfterMedKitPU()
