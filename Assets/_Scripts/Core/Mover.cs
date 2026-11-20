@@ -25,6 +25,20 @@ namespace Rambler.Movement
         public bool timerRunning;  //Disabled in Attack & When Patrolling
         public float maxSpeed;
 
+        [Header("Foot sliding")]
+        [Tooltip("Feed the animator speed in the clips' own scale (speed / avatar size) and speed the run up when the agent " +
+                 "outruns it, so planted feet stay put. The locomotion blend thresholds must be the clips' natural speeds.")]
+        [SerializeField] bool matchAnimToSpeed;
+        [Tooltip("Natural speed of the fastest locomotion clip, in the clips' scale (Unarmed_Sprint_F_RM = 3.26).")]
+        [SerializeField] float animTopSpeed = 3.26f;
+        [Tooltip("Most the run animation may be sped up; beyond this the feet slide a little rather than whirl.")]
+        [SerializeField] float maxAnimSpeedUp = 1.6f;
+
+        static readonly int ForwardSpeedHash = Animator.StringToHash("forwardSpeed");
+        static readonly int LocoSpeedHash = Animator.StringToHash("LocoSpeed");
+        Animator animator;
+        bool hasLocoSpeed;
+
         NavMeshAgent navMeshAgent;
         float timerToMove = 10f;        
         Rigidbody rb;
@@ -153,11 +167,26 @@ namespace Rambler.Movement
                
         private void UpdateAnimator()
         {
-            Animator anim = GetComponent<Animator>();
-            Vector3 velocity = GetComponent<NavMeshAgent>().velocity;
-            Vector3 localVelocity = transform.InverseTransformDirection(velocity);
+            if (animator == null)
+            {
+                animator = GetComponent<Animator>();
+                if (animator == null) return;
+                foreach (var p in animator.parameters) if (p.nameHash == LocoSpeedHash) hasLocoSpeed = true;
+            }
+            if (navMeshAgent == null) navMeshAgent = GetComponent<NavMeshAgent>();
+            Vector3 localVelocity = transform.InverseTransformDirection(navMeshAgent.velocity);
             float speed = localVelocity.z;
-            anim.SetFloat("forwardSpeed", speed);            
+            if (matchAnimToSpeed && animator.isHuman && animator.humanScale > 0.01f)
+            {
+                //Ground speed, not just the forward part: a squad member side-stepping while it turns still steps
+                Vector3 flat = navMeshAgent.velocity; flat.y = 0f;
+                speed = flat.magnitude;
+                //Humanoid clips move at their natural speed times the avatar's size, so compare in the clips' scale
+                speed /= animator.humanScale;
+                if (hasLocoSpeed)
+                    animator.SetFloat(LocoSpeedHash, Mathf.Clamp(speed / Mathf.Max(0.1f, animTopSpeed), 1f, maxAnimSpeedUp));
+            }
+            animator.SetFloat(ForwardSpeedHash, speed);
         }
 
         public Vector3 RandomNavmeshLocation(float radius, Transform thisTransform)

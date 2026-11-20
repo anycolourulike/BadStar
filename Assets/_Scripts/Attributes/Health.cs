@@ -204,7 +204,7 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
             anim.SetBool("HitAnim", false);
             dieRanNum = Random.Range(1, 4);            
             
-            transform.position += new Vector3(0,0,-2f) * 10f * Time.deltaTime;
+            StartCoroutine(DeathPush()); //Knocked back a little, over a few frames rather than in one jump
             if(dieRanNum == 1)
             {
                 anim.speed = 2.5f;
@@ -248,6 +248,24 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
                     return;
                 }                
             }                     
+        }
+
+        //Slides the body back about a third of a metre over a quarter second, away from the way it faces
+        IEnumerator DeathPush()
+        {
+            const float distance = 0.35f, duration = 0.25f;
+            Vector3 back = -transform.forward; back.y = 0f; back.Normalize();
+            var navAgent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+            float t = 0f;
+            while (t < duration)
+            {
+                float dt = Mathf.Min(Time.deltaTime, duration - t);
+                Vector3 step = back * (distance * dt / duration);
+                if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh) navAgent.Move(step);
+                else transform.position += step;
+                t += dt;
+                yield return null;
+            }
         }
 
         public void CheckTag(GameObject obj)
