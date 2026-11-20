@@ -22,6 +22,14 @@ namespace Rambler.Combat
         [Tooltip("High cover: how far the character steps past the edge to shoot.")]
         [SerializeField] float stepOut = 0.6f;
 
+        [Header("Cover fire rhythm (guards and companions, not the player)")]
+        [Tooltip("In cover with a target: hide, pop out and fire a burst, duck back, repeat. Off: fires the whole time.")]
+        [SerializeField] bool useFireRhythm = true;
+        [Tooltip("Seconds spent hidden before each burst; one is picked at random each time, so players can learn the rhythm.")]
+        [SerializeField] float[] hideTimes = { 1.5f, 2.5f, 4f };
+        [Tooltip("Seconds spent out of cover firing each burst.")]
+        [SerializeField] float burstTime = 2f;
+
         [Header("AI")]
         [Tooltip("Run to nearby cover when fighting. On by default for enemies.")]
         [SerializeField] bool seekCover;
@@ -53,6 +61,10 @@ namespace Rambler.Combat
         float headingSince;
         bool hasLow, hasLeft, hasRight, hasPeekLeft, hasPeekRight, hasPistol, hasVariant;
         int variant; //Which version of the cover pose plays at the current spot
+        CoverPoint lastPoint; //Where it last took cover, and when it left: dropping straight back in keeps the same pose
+        float lastLeft = -99f;
+        bool exposed;    //Fire rhythm: out of cover firing (true) or hidden (false)
+        float phaseEnds; //Fire rhythm: when the current hide/burst ends (0 = not started)
 
         public bool InCover => current != null;
         public bool IsMovingToCover => heading != null && current == null;
@@ -62,6 +74,10 @@ namespace Rambler.Combat
         public bool AutoSeek { get => seekCover; set => seekCover = value; }
         //Stands the character out of its cover pose while it does something else (e.g. throws a grenade)
         public bool PoseSuspended { get; set; }
+        //The fire rhythm runs for AI only; the character the player controls fires when told to
+        bool RhythmActive => useFireRhythm && !CompareTag("Player");
+        //In cover with a target but in the hidden part of the fire rhythm: Fighter neither aims nor fires
+        public bool HoldingFire => current != null && RhythmActive && fighter != null && fighter.EnemyPos != null && !exposed;
 
         void Awake()
         {
@@ -127,8 +143,8 @@ namespace Rambler.Combat
             if (heading != null && heading != point) heading.Release(gameObject); //Stopped short at other cover
             current = point;
             heading = null;
-            //A fresh pose for each spot, kept until the character leaves it
-            variant = Random.Range(0, Mathf.Max(1, poseVariants));
+            //A fresh pose for each spot, kept until the character leaves it (a brief slip off the same spot keeps it)
+            if (point != lastPoint || Time.time - lastLeft > 3f) variant = Random.Range(0, Mathf.Max(1, poseVariants));
             if (hasVariant) anim.SetFloat(CoverVariant, variant);
         }
 
@@ -146,7 +162,8 @@ namespace Rambler.Combat
             //Slide onto the point and settle into the pose, unless busy shooting (Fighter faces the target).
             //Low cover: crouch facing the cover. High cover: back to the wall, looking out past the edge;
             //to shoot, step out past the edge and aim round the corner.
-            bool shooting = fighter != null && fighter.EnemyPos != null;
+            bool hasTarget = fighter != null && fighter.EnemyPos != null;
+            bool shooting = UpdateFireRhythm(hasTarget);
             bool low = current.Type == CoverPoint.CoverType.Low;
             bool left = current.Side == CoverPoint.CoverSide.Left;
             Vector3 spot = current.transform.position;
@@ -166,6 +183,32 @@ namespace Rambler.Combat
                       !low && !shooting && left, !low && !shooting && !left,
                       !low && shooting && left, !low && shooting && !left);
         }
+
+        //Hide for one of the hide times, fire for burstTime, repeat. Returns true while it should be out firing.
+        bool UpdateFireRhythm(bool hasTarget)
+        {
+            if (!hasTarget || !RhythmActive)
+            {
+                exposed = false;
+                phaseEnds = 0f;
+                return hasTarget; //No rhythm: fire the whole time it has a target
+            }
+            if (phaseEnds == 0f)
+            {
+                //A new fight from this cover starts hidden
+                exposed = false;
+                phaseEnds = Time.time + PickHideTime();
+            }
+            else if (Time.time >= phaseEnds)
+            {
+                exposed = !exposed;
+                phaseEnds = Time.time + (exposed ? burstTime : PickHideTime());
+            }
+            return exposed;
+        }
+
+        float PickHideTime() =>
+            hideTimes != null && hideTimes.Length > 0 ? Mathf.Max(0f, hideTimes[Random.Range(0, hideTimes.Length)]) : 2f;
 
         void SeekCover()
         {
@@ -239,9 +282,16 @@ namespace Rambler.Combat
 
         public void Leave()
         {
-            if (current != null) current.Release(gameObject);
+            if (current != null)
+            {
+                current.Release(gameObject);
+                lastPoint = current;
+                lastLeft = Time.time;
+            }
             if (heading != null) heading.Release(gameObject);
             current = null;
+            exposed = false;
+            phaseEnds = 0f;
             SetParams(false, false, false, false, false);
         }
 

@@ -190,6 +190,9 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
             if (rigBuilder != null) rigBuilder.enabled = false;
             var capCol = GetComponent<CapsuleCollider>();
             if (capCol != null) capCol.enabled = false;
+            //Enlarged tap targets (see Sandbox guards): a body shouldn't catch taps meant for the ground around it
+            var tapTarget = transform.Find("TapTarget");
+            if (tapTarget != null) tapTarget.gameObject.SetActive(false);
             if (fighter == null) fighter = GetComponent<Fighter>(); //Can die before its Start has run
             if (fighter != null) fighter.enabled = false;
             if (activateBtn != null)

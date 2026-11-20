@@ -21,6 +21,8 @@ namespace Rambler
             var col = GetComponent<Collider>();
             if (col == null) col = gameObject.AddComponent<BoxCollider>(); //Fits the mesh bounds
             col.isTrigger = true;
+            //Ignore Raycast: taps (shoot / move) pass through the volume to whatever is inside the room
+            gameObject.layer = 2;
 
             var mr = GetComponent<MeshRenderer>();
             if (mr != null) mr.enabled = false;

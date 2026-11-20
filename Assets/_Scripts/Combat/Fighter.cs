@@ -156,6 +156,8 @@ namespace Rambler.Combat
 
         void AttackBehaviour()
         {
+            //Hidden in cover between bursts (CoverUser's fire rhythm): no aiming round the wall, no firing
+            if (coverUser != null && coverUser.HoldingFire) return;
             if (!this.gameObject.CompareTag("Player"))
             {                
                 if (activeWeapon.curClip <= 0)
