@@ -10,6 +10,7 @@
         Robot,
         Warbot,
         Timbertoes,
-        Drone
+        Drone,
+        Guard   //Security guards (AtlasMK3): own health, separate from the squad
     }
 }
