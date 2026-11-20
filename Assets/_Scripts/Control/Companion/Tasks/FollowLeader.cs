@@ -66,11 +66,18 @@ namespace Rambler.Control.CompanionTasks
                 return TaskStatus.Running;
             }
 
+            //Pace: a walk near the slot, the leader's own speed plus a catch-up share of the gap when it moves,
+            //flat out only when well out of place (in-between paces made the feet skid)
+            float max = Mathf.Max(0.1f, brain.MaxSpeed);
+            float leaderSpeed = leaderAgent != null ? leaderAgent.velocity.magnitude : 0f;
+            float run = brain.RunPace;
+            float pace = fromSlot > m_RunDistance.Value ? run
+                       : Mathf.Min(run, Mathf.Max(brain.WalkPace, leaderMoving ? leaderSpeed * 1.05f + Mathf.Max(0f, fromSlot - m_Tolerance.Value) * 0.8f : 0f));
+            float speed = Mathf.Clamp01(pace / max);
+            brain.SetSpeed(speed);
             //Only repath when the slot has moved a little, so the agent isn't re-planning every frame
             if (!moving || (slot - lastDestination).sqrMagnitude > 0.25f)
             {
-                float speed = fromSlot > m_RunDistance.Value ? 1f : m_WalkSpeed.Value;
-                if (leaderMoving) speed = Mathf.Max(speed, 0.9f); //Keep up with a moving player
                 brain.MoveTo(slot, speed);
                 lastDestination = slot;
                 moving = true;

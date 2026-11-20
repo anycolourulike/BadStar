@@ -68,6 +68,9 @@ namespace Rambler.Control
         public float CoverSearchRadius => coverSearchRadius;
         public float AttackRange => fighter != null && fighter.AttackRange > 0f ? fighter.AttackRange : 12f;
         public float MaxSpeed => mover != null && mover.maxSpeed > 0f ? mover.maxSpeed : agent.speed;
+        //Paces the feet can match (Mover), so following never runs faster or slower than the animation covers
+        public float WalkPace => mover != null ? mover.WalkPace : 1.6f;
+        public float RunPace => mover != null ? Mathf.Min(MaxSpeed, mover.MaxCleanSpeed) : MaxSpeed;
         public Vector3 Eye => transform.position + Vector3.up * eyeHeight;
 
         //Something to fight (or, without a gun, to hide from): seen recently, alive, and the player isn't running off without us
@@ -256,6 +259,12 @@ namespace Rambler.Control
         public void HoldFire()
         {
             if (fighter != null && fighter.EnemyPos != null) fighter.CancelTarget();
+        }
+
+        //Changes speed without re-planning the path
+        public void SetSpeed(float speedFraction)
+        {
+            if (agent.enabled) agent.speed = MaxSpeed * Mathf.Clamp01(speedFraction);
         }
 
         public void MoveTo(Vector3 destination, float speedFraction)

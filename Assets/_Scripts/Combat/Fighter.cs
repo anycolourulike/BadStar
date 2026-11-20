@@ -139,6 +139,11 @@ namespace Rambler.Combat
         [SerializeField] float maxKick = 9f;
         [Tooltip("Extra spread in degrees when firing on the move.")]
         [SerializeField] float movingSpread = 4f;
+        [Tooltip("Degrees per second the body turns onto a target.")]
+        [SerializeField] float aimTurnSpeed = 300f;
+        [Tooltip("Holds fire until facing within this many degrees of the target.")]
+        [SerializeField] float fireWithinAngle = 15f;
+        bool melee() => weaponConfig != null && weaponConfig.isMelee;
         float kick;
         int burstShotsFired;
         int burstSize;
@@ -187,10 +192,21 @@ namespace Rambler.Combat
             }
         }
 
+        //With a target the aim turn steers the body; otherwise the agent faces where it walks (both at once made it swing)
+        void SteerByAgent(bool byAgent)
+        {
+            if (navAgent == null) navAgent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+            if (navAgent != null && navAgent.updateRotation != byAgent) navAgent.updateRotation = byAgent;
+        }
+        UnityEngine.AI.NavMeshAgent navAgent;
+
         void Update()
         {
             timeSinceLastAttack += Time.deltaTime;
             kick = Mathf.MoveTowards(kick, 0f, kickRecovery * Time.deltaTime);
+            //Running to cover faces the way it runs; otherwise, with a target, the body stays on the target (aiming)
+            bool dashingToCover = coverUser != null && coverUser.IsMovingToCover && !FireOnTheMove;
+            SteerByAgent(enemyPos == null || (weaponConfig != null && weaponConfig.isMelee) || dashingToCover);
             if (enemyPos == null) { return; }
             if (this.gameObject.CompareTag("Enemy")) { enemyPos = TargetCap.transform; }
             if (enemyPos.CompareTag("AIConversant")) return;
@@ -240,8 +256,10 @@ namespace Rambler.Combat
                 if (blind && !(coverUser != null && coverUser.Suppressing)) return;
             }
 
-            mover.FaceFlat(enemyPos.transform.position);
+            //Turn onto the target at a natural rate (snapping round looked wrong) and only fire once nearly lined up
+            float offAim = mover.TurnTowards(enemyPos.transform.position, aimTurnSpeed);
             AssignIKTarget();
+            if (offAim > fireWithinAngle && !(melee())) return;
             if (this.gameObject.CompareTag("Player") && enemyPos.gameObject.CompareTag("Companion")) return;
             if (this.gameObject.CompareTag("Companion") && enemyPos.gameObject.CompareTag("Player")) return;
 

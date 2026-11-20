@@ -33,6 +33,59 @@ namespace Rambler.Movement
         [SerializeField] float animTopSpeed = 3.26f;
         [Tooltip("Most the run animation may be sped up; beyond this the feet slide a little rather than whirl.")]
         [SerializeField] float maxAnimSpeedUp = 1.6f;
+        [Tooltip("Natural speed of the walk clip, in the clips' scale (unarmed walk 0.92, pistol walk 1.45). Below it the walk " +
+                 "is played slower rather than blended with the idle, whose feet don't move.")]
+        [SerializeField] float animWalkSpeed = 0.92f;
+        [Tooltip("Slowest the walk is played (fraction of normal); slower than this it eases into the idle.")]
+        [SerializeField] float minWalkPlayback = 0.4f;
+        [Tooltip("No jog clip between walk and sprint: play the walk sped up (to Max Walk Speed Up) or the sprint slowed " +
+                 "(down to Min Run Playback) instead of mixing the two, whose different strides made the feet skid.")]
+        [SerializeField] bool bridgeWalkRunGap;
+        [SerializeField] float maxWalkSpeedUp = 1.5f;
+        [SerializeField] float minRunPlayback = 0.5f;
+        [Tooltip("Where the blend tree's sprint clip sits (its threshold); sent at least this for a pure run, whatever the run's measured speed.")]
+        [SerializeField] float runBlendThreshold = 3.26f;
+        [Tooltip("Locomotion changes with the weapon held (guards: unarmed / pistol / rifle blends). Uses the speeds below " +
+                 "for the current weapon instead of Anim Walk Speed / Anim Top Speed.")]
+        [SerializeField] bool speedsByWeapon;
+        [SerializeField] Vector2 unarmedWalkTop = new Vector2(0.92f, 3.26f);
+        [SerializeField] Vector2 pistolWalkTop = new Vector2(1.45f, 3.84f);
+        [SerializeField] Vector2 rifleWalkTop = new Vector2(1.93f, 4.34f);
+        Rambler.Combat.Fighter weaponOwner;
+
+        //Walk and top natural speeds for what the character is carrying now
+        float GroundScale()
+        {
+            var an = GetComponent<Animator>();
+            return an != null && an.isHuman ? an.humanScale * transform.lossyScale.y : 1f;
+        }
+
+        /// <summary>A comfortable walking pace in m/s: the walk clip played a little brisk.</summary>
+        public float WalkPace => LocomotionSpeeds().x * GroundScale() * 1.2f;
+
+        /// <summary>The fastest ground speed in m/s the run animation can match without the feet skating.</summary>
+        public float MaxCleanSpeed => LocomotionSpeeds().y * GroundScale() * maxAnimSpeedUp;
+
+        Vector2 LocomotionSpeeds()
+        {
+            if (!speedsByWeapon) return new Vector2(animWalkSpeed, animTopSpeed);
+            if (weaponOwner == null) weaponOwner = GetComponent<Rambler.Combat.Fighter>();
+            var w = weaponOwner != null ? weaponOwner.weaponConfig : null;
+            if (w == null || w.isMelee) return unarmedWalkTop;
+            return w.isPistol ? pistolWalkTop : rifleWalkTop;
+        }
+
+        [Header("Aiming locomotion")]
+        [Tooltip("While the body is turned onto a target (Fighter aiming), play the 8-way strafe blend (controller needs Aiming/MoveX/MoveZ).")]
+        [SerializeField] bool aimLocomotion = true;
+        [Tooltip("Top speed while aiming (m/s): a jog, which the strafe run clips cover.")]
+        [SerializeField] float maxAimMoveSpeed = 2.4f;
+        [Tooltip("Top speed backing away while aiming (m/s).")]
+        [SerializeField] float maxAimBackSpeed = 1.0f;
+        static readonly int MoveXHash = Animator.StringToHash("MoveX");
+        static readonly int MoveZHash = Animator.StringToHash("MoveZ");
+        static readonly int AimingHash = Animator.StringToHash("Aiming");
+        bool hasAimParams;
 
         static readonly int ForwardSpeedHash = Animator.StringToHash("forwardSpeed");
         static readonly int LocoSpeedHash = Animator.StringToHash("LocoSpeed");
@@ -133,6 +186,16 @@ namespace Rambler.Movement
         }
 
         //Turn to face a point on the horizontal plane only, so height differences never tilt the body
+        //Turns towards a point at a set rate instead of snapping; returns how far off it still is (degrees)
+        public float TurnTowards(Vector3 point, float degreesPerSecond)
+        {
+            Vector3 dir = FlatDirection(point);
+            if (dir == Vector3.zero) return 0f;
+            var want = Quaternion.LookRotation(dir);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, want, degreesPerSecond * Time.deltaTime);
+            return Quaternion.Angle(transform.rotation, want);
+        }
+
         public void FaceFlat(Vector3 point)
         {
             Vector3 dir = FlatDirection(point);
@@ -172,7 +235,7 @@ namespace Rambler.Movement
             {
                 animator = GetComponent<Animator>();
                 if (animator == null) return;
-                foreach (var p in animator.parameters) if (p.nameHash == LocoSpeedHash) hasLocoSpeed = true;
+                foreach (var p in animator.parameters) { if (p.nameHash == LocoSpeedHash) hasLocoSpeed = true; if (p.nameHash == AimingHash) hasAimParams = true; }
             }
             if (navMeshAgent == null) navMeshAgent = GetComponent<NavMeshAgent>();
             Vector3 localVelocity = transform.InverseTransformDirection(navMeshAgent.velocity);
@@ -186,9 +249,47 @@ namespace Rambler.Movement
                 //(the guards are scaled to 0.55), so compare in the clips' own scale
                 speed /= animator.humanScale * Mathf.Max(0.01f, transform.lossyScale.y);
                 if (hasLocoSpeed)
-                    animator.SetFloat(LocoSpeedHash, Mathf.Clamp(speed / Mathf.Max(0.1f, animTopSpeed), 1f, maxAnimSpeedUp));
+                {
+                    float playback;
+                    Vector2 speeds = LocomotionSpeeds();
+                    float walk = Mathf.Max(0.1f, speeds.x);
+                    if (speed > walk * minWalkPlayback && speed < walk)
+                    {
+                        //Slower than a walk: the pure walk, played slower (idle mixed in would skid the feet)
+                        playback = speed / walk;
+                        speed = walk;
+                    }
+                    else if (bridgeWalkRunGap && speed >= walk && speed < speeds.y)
+                    {
+                        if (speed < walk * maxWalkSpeedUp) { playback = speed / walk; speed = walk; }                  //Brisk walk
+                        else { playback = Mathf.Max(minRunPlayback, speed / speeds.y); speed = Mathf.Max(speeds.y, runBlendThreshold); } //Easy run
+                    }
+                    else
+                    {
+                        playback = Mathf.Clamp(speed / Mathf.Max(0.1f, speeds.y), 1f, maxAnimSpeedUp);
+                        if (bridgeWalkRunGap && speed >= speeds.y) speed = Mathf.Max(speed, runBlendThreshold); //Pure run, no walk mixed in
+                    }
+                    animator.SetFloat(LocoSpeedHash, playback);
+                }
             }
-            animator.SetFloat(ForwardSpeedHash, speed);
+            //A short damp so switching between walk and run crossfades instead of popping
+            animator.SetFloat(ForwardSpeedHash, speed, bridgeWalkRunGap ? 0.12f : 0f, Time.deltaTime);
+
+            //Aiming: the Fighter is steering the body at a target, so movement can be any direction relative to the facing
+            if (hasAimParams)
+            {
+                bool aiming = aimLocomotion && !navMeshAgent.updateRotation;
+                Vector3 lv = transform.InverseTransformDirection(navMeshAgent.velocity); lv.y = 0f;
+                float moveAngle = lv.sqrMagnitude > 0.04f ? Mathf.Abs(Vector3.SignedAngle(Vector3.forward, lv, Vector3.up)) : 0f;
+                //Heading straight for the target is just walking forward: the regular (speed-matched) locomotion does that best
+                bool strafing = aiming && lv.sqrMagnitude > 0.04f && moveAngle > 30f;
+                animator.SetBool(AimingHash, strafing || (aiming && lv.sqrMagnitude <= 0.04f));
+                if (aiming && moveAngle > 110f && navMeshAgent.speed > maxAimBackSpeed) navMeshAgent.speed = maxAimBackSpeed;
+                float k = animator.isHuman ? Mathf.Max(0.01f, animator.humanScale * transform.lossyScale.y) : 1f;
+                animator.SetFloat(MoveXHash, lv.x / k, 0.1f, Time.deltaTime);
+                animator.SetFloat(MoveZHash, lv.z / k, 0.1f, Time.deltaTime);
+                if (aiming && navMeshAgent.speed > maxAimMoveSpeed) navMeshAgent.speed = maxAimMoveSpeed;
+            }
         }
 
         public Vector3 RandomNavmeshLocation(float radius, Transform thisTransform)
