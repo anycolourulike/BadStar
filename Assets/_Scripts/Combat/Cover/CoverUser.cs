@@ -37,6 +37,10 @@ namespace Rambler.Combat
         static readonly int CoverPeekLeft = Animator.StringToHash("CoverPeekLeft");
         static readonly int CoverPeekRight = Animator.StringToHash("CoverPeekRight");
         static readonly int CoverPistol = Animator.StringToHash("CoverPistol");
+        static readonly int CoverVariant = Animator.StringToHash("CoverVariant");
+
+        [Tooltip("How many versions of each cover pose the animator has (CoverVariant 0, 1, 2...). One is picked at random per cover spot.")]
+        [SerializeField] int poseVariants = 3;
 
         NavMeshAgent agent;
         Animator anim;
@@ -47,7 +51,8 @@ namespace Rambler.Combat
         CoverPoint heading;
         float nextSearch;
         float headingSince;
-        bool hasLow, hasLeft, hasRight, hasPeekLeft, hasPeekRight, hasPistol;
+        bool hasLow, hasLeft, hasRight, hasPeekLeft, hasPeekRight, hasPistol, hasVariant;
+        int variant; //Which version of the cover pose plays at the current spot
 
         public bool InCover => current != null;
         public bool IsMovingToCover => heading != null && current == null;
@@ -76,6 +81,7 @@ namespace Rambler.Combat
                     else if (p.nameHash == CoverPeekLeft) hasPeekLeft = true;
                     else if (p.nameHash == CoverPeekRight) hasPeekRight = true;
                     else if (p.nameHash == CoverPistol) hasPistol = true;
+                    else if (p.nameHash == CoverVariant) hasVariant = true;
                 }
             }
         }
@@ -121,6 +127,9 @@ namespace Rambler.Combat
             if (heading != null && heading != point) heading.Release(gameObject); //Stopped short at other cover
             current = point;
             heading = null;
+            //A fresh pose for each spot, kept until the character leaves it
+            variant = Random.Range(0, Mathf.Max(1, poseVariants));
+            if (hasVariant) anim.SetFloat(CoverVariant, variant);
         }
 
         void HoldCover()
