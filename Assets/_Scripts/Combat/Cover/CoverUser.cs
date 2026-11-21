@@ -21,6 +21,8 @@ namespace Rambler.Combat
         [SerializeField] float turnSpeed = 540f;
         [Tooltip("High cover: how far the character steps past the edge to shoot.")]
         [SerializeField] float stepOut = 0.6f;
+        [Tooltip("Step out past a tall cover's edge with guns that have lean-out clips (TacticalMoves): the lean does the rest.")]
+        [SerializeField] float leanStepOut = 0.25f;
 
         [Header("Cover fire rhythm (guards and companions, not the player)")]
         [Tooltip("In cover with a target: hide, pop out and fire a burst, duck back, repeat. Off: fires the whole time.")]
@@ -174,7 +176,8 @@ namespace Rambler.Combat
             bool low = current.Type == CoverPoint.CoverType.Low;
             bool left = current.Side == CoverPoint.CoverSide.Left;
             Vector3 spot = current.transform.position;
-            if (!low && shooting) spot += OpenSide(current) * stepOut;
+            bool leanClips = fighter != null && fighter.weaponConfig != null && fighter.weaponConfig.CoverAnimSet > 0;
+            if (!low && shooting) spot += OpenSide(current) * (leanClips ? leanStepOut : stepOut);
             Vector3 offset = spot - transform.position;
             offset.y = 0f;
             if (offset.sqrMagnitude > 0.0004f) agent.Move(offset * Mathf.Min(1f, snapSpeed * Time.deltaTime));

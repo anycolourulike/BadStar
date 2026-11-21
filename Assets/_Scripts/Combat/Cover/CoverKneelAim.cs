@@ -14,7 +14,10 @@ namespace Rambler.Combat
     [DefaultExecutionOrder(100)] //After Mover, which sets the rig weights each Update
     public class CoverKneelAim : MonoBehaviour
     {
-        [SerializeField] string stateName = "Cover Low Fire";
+        [Tooltip("States that fire from cover: hands on the gun and the spine aims at the target.")]
+        [SerializeField] string[] fireStates = { "Cover Low Fire", "Corner Shoot L", "Corner Shoot R" };
+        [Tooltip("Fire states whose own clips (not the pack's) are made for this IK. Others only use it with pack clips (rifles keep their rigs).")]
+        [SerializeField] string[] ownClipFireStates = { "Cover Low Fire" };
         [Tooltip("Seconds to blend the IK in and out.")]
         [SerializeField] float blendTime = 0.2f;
         [Tooltip("Aim at this height on the target.")]
@@ -23,8 +26,8 @@ namespace Rambler.Combat
         [SerializeField] float spineAimWeight = 1f;
         [Range(0f, 1f)]
         [SerializeField] float supportHandWeight = 1f;
-        [Tooltip("Also holds the gun in this (hiding) state when it plays a TacticalMoves pack clip.")]
-        [SerializeField] string hideStateName = "Cover Low";
+        [Tooltip("Hiding states: the gun is held this way only while they play a TacticalMoves pack clip.")]
+        [SerializeField] string[] hideStates = { "Cover Low", "Stand Corner Hide L", "Stand Corner Hide R" };
         [Header("TacticalMoves pack clips (set by the setup script)")]
         [Tooltip("The pack gun's barrel and up in this character's right-hand bone space: in pack clips our gun is turned to match.")]
         [SerializeField] Vector3 packBarrelInHand = Vector3.forward;
@@ -44,7 +47,7 @@ namespace Rambler.Combat
         readonly IKSolverLimb leftArm = new IKSolverLimb();
         bool ready;
         float weight;
-        int stateHash, hideHash;
+        int[] fireHashes, hideHashes, ownHashes;
         bool firing, packClip, packSmg;
 
         //The gun's barrel and "up" (out of the grip) in its own rotation frame, worked out once per gun
@@ -65,8 +68,9 @@ namespace Rambler.Combat
                 var f = typeof(Mover).GetField("mainRig", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 mainRig = f != null ? f.GetValue(mover) as Rig : null;
             }
-            stateHash = Animator.StringToHash(stateName);
-            hideHash = Animator.StringToHash(hideStateName);
+            fireHashes = System.Array.ConvertAll(fireStates, Animator.StringToHash);
+            hideHashes = System.Array.ConvertAll(hideStates, Animator.StringToHash);
+            ownHashes = System.Array.ConvertAll(ownClipFireStates, Animator.StringToHash);
             rigBuilder = GetComponent<RigBuilder>();
         }
 
@@ -110,9 +114,11 @@ namespace Rambler.Combat
         bool InKneelState()
         {
             int s = TargetState();
-            firing = s == stateHash;
-            packClip = (firing || s == hideHash) && PackClipPlaying();
-            return firing || (s == hideHash && packClip);
+            firing = System.Array.IndexOf(fireHashes, s) >= 0;
+            bool hiding = System.Array.IndexOf(hideHashes, s) >= 0;
+            packClip = (firing || hiding) && PackClipPlaying();
+            if (firing && !packClip && System.Array.IndexOf(ownHashes, s) < 0) firing = false; //e.g. a rifle leaning out on its own clip and rigs
+            return firing || (hiding && packClip);
         }
 
         void Update()
