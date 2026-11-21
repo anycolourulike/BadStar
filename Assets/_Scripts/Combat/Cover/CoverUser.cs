@@ -46,6 +46,8 @@ namespace Rambler.Combat
         static readonly int CoverPeekRight = Animator.StringToHash("CoverPeekRight");
         static readonly int CoverPistol = Animator.StringToHash("CoverPistol");
         static readonly int CoverVariant = Animator.StringToHash("CoverVariant");
+        static readonly int CoverLowFire = Animator.StringToHash("CoverLowFire");
+        bool hasLowFire;
 
         [Tooltip("How many versions of each cover pose the animator has (CoverVariant 0, 1, 2...). One is picked at random per cover spot.")]
         [SerializeField] int poseVariants = 3;
@@ -100,6 +102,7 @@ namespace Rambler.Combat
                     else if (p.nameHash == CoverPeekRight) hasPeekRight = true;
                     else if (p.nameHash == CoverPistol) hasPistol = true;
                     else if (p.nameHash == CoverVariant) hasVariant = true;
+                    else if (p.nameHash == CoverLowFire) hasLowFire = true;
                 }
             }
         }
@@ -181,6 +184,9 @@ namespace Rambler.Combat
 
             //Pop up over low cover / lean out round high cover to shoot
             if (PoseSuspended) { SetParams(false, false, false, false, false); return; }
+            //Pistols fire from a kneel behind low cover (Cover Low Fire); other guns still stand up over it
+            bool kneelFire = low && shooting && hasLowFire && fighter != null && fighter.weaponConfig != null && fighter.weaponConfig.isPistol;
+            if (hasLowFire) anim.SetBool(CoverLowFire, kneelFire);
             SetParams(low && !shooting,
                       !low && !shooting && left, !low && !shooting && !left,
                       !low && shooting && left, !low && shooting && !left);
@@ -300,6 +306,7 @@ namespace Rambler.Combat
         void SetParams(bool low, bool left, bool right, bool peekLeft, bool peekRight)
         {
             if (anim == null) return;
+            if (hasLowFire && !(current != null && current.Type == CoverPoint.CoverType.Low && !PoseSuspended)) anim.SetBool(CoverLowFire, false);
             if (hasLow) anim.SetBool(InCoverLow, low);
             if (hasLeft) anim.SetBool(StandCoverLeft, left);
             if (hasRight) anim.SetBool(StandCoverRight, right);
