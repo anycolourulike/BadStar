@@ -43,6 +43,8 @@ namespace Rambler.Combat
         [Min(0f)] [SerializeField] float kickPerShot = 0f;
 
         //Defaults by weapon type, used where a field is left at 0
+        //Which TacticalMoves animation set fits this gun in cover: 0 = none (rifles etc. keep our own clips), 1 = handgun, 2 = SMG
+        public int CoverAnimSet => isMelee ? 0 : (weaponTitle ?? "").ToLowerInvariant().Contains("smg") ? 2 : isPistol ? 1 : 0;
         string Kind => isMelee ? "melee" : isPistol ? "pistol" : isRifle ? "rifle" : weaponTitle != null ? weaponTitle.ToLowerInvariant() : "";
         public Vector2Int BurstShots => burstShots.y > 0 ? burstShots :
             Kind.Contains("pistol") ? new Vector2Int(2, 3) : Kind.Contains("smg") ? new Vector2Int(4, 6) :

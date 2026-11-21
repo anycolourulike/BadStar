@@ -47,7 +47,8 @@ namespace Rambler.Combat
         static readonly int CoverPistol = Animator.StringToHash("CoverPistol");
         static readonly int CoverVariant = Animator.StringToHash("CoverVariant");
         static readonly int CoverLowFire = Animator.StringToHash("CoverLowFire");
-        bool hasLowFire;
+        static readonly int CoverWeapon = Animator.StringToHash("CoverWeapon");
+        bool hasLowFire, hasCoverWeapon;
 
         [Tooltip("How many versions of each cover pose the animator has (CoverVariant 0, 1, 2...). One is picked at random per cover spot.")]
         [SerializeField] int poseVariants = 3;
@@ -103,6 +104,7 @@ namespace Rambler.Combat
                     else if (p.nameHash == CoverPistol) hasPistol = true;
                     else if (p.nameHash == CoverVariant) hasVariant = true;
                     else if (p.nameHash == CoverLowFire) hasLowFire = true;
+                    else if (p.nameHash == CoverWeapon) hasCoverWeapon = true;
                 }
             }
         }
@@ -312,6 +314,7 @@ namespace Rambler.Combat
             if (hasRight) anim.SetBool(StandCoverRight, right);
             if (hasPeekLeft) anim.SetBool(CoverPeekLeft, peekLeft);
             if (hasPeekRight) anim.SetBool(CoverPeekRight, peekRight);
+            if (hasCoverWeapon) anim.SetFloat(CoverWeapon, fighter != null && fighter.weaponConfig != null ? fighter.weaponConfig.CoverAnimSet : 0);
             if (hasPistol) anim.SetFloat(CoverPistol, fighter != null && fighter.weaponConfig != null && fighter.weaponConfig.isPistol ? 1f : 0f);   //one-handed guns lean out with the pistol pose
         }
 

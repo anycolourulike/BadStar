@@ -23,6 +23,15 @@ namespace Rambler.Combat
         [SerializeField] float spineAimWeight = 1f;
         [Range(0f, 1f)]
         [SerializeField] float supportHandWeight = 1f;
+        [Tooltip("Also holds the gun in this (hiding) state when it plays a TacticalMoves pack clip.")]
+        [SerializeField] string hideStateName = "Cover Low";
+        [Header("TacticalMoves pack clips (set by the setup script)")]
+        [Tooltip("The pack gun's barrel and up in this character's right-hand bone space: in pack clips our gun is turned to match.")]
+        [SerializeField] Vector3 packBarrelInHand = Vector3.forward;
+        [SerializeField] Vector3 packUpInHand = Vector3.up;
+        [Tooltip("The same for the pack's SMG clips (its SMG sits in the hand differently).")]
+        [SerializeField] Vector3 packSmgBarrelInHand = Vector3.forward;
+        [SerializeField] Vector3 packSmgUpInHand = Vector3.up;
 
         Animator anim;
         Fighter fighter;
@@ -35,7 +44,8 @@ namespace Rambler.Combat
         readonly IKSolverLimb leftArm = new IKSolverLimb();
         bool ready;
         float weight;
-        int stateHash;
+        int stateHash, hideHash;
+        bool firing, packClip, packSmg;
 
         //The gun's barrel and "up" (out of the grip) in its own rotation frame, worked out once per gun
         ActiveWeapon gunFor;
@@ -56,6 +66,7 @@ namespace Rambler.Combat
                 mainRig = f != null ? f.GetValue(mover) as Rig : null;
             }
             stateHash = Animator.StringToHash(stateName);
+            hideHash = Animator.StringToHash(hideStateName);
             rigBuilder = GetComponent<RigBuilder>();
         }
 
@@ -72,19 +83,36 @@ namespace Rambler.Combat
             var lh = anim.GetBoneTransform(HumanBodyBones.LeftHand);
             if (chain.Count == 0 || la == null || lf == null || lh == null) { enabled = false; return; }
             aim.SetChain(chain.ToArray(), transform);
-            aim.clampWeight = 0.3f;
-            aim.maxIterations = 2;
+            aim.clampWeight = 0.1f;
+            aim.maxIterations = 4;
             leftArm.SetChain(la, lf, lh, transform);
             leftArm.goal = AvatarIKGoal.LeftHand;
             leftArm.bendModifier = IKSolverLimb.BendModifier.Animation;
             ready = true;
         }
 
+        //The state that is (or is becoming) current
+        int TargetState()
+        {
+            return anim.IsInTransition(0) ? anim.GetNextAnimatorStateInfo(0).shortNameHash : anim.GetCurrentAnimatorStateInfo(0).shortNameHash;
+        }
+
+        //Is the heaviest clip playing in that state one of the TacticalMoves pack's (named Anim_...)?
+        bool PackClipPlaying()
+        {
+            var infos = anim.IsInTransition(0) ? anim.GetNextAnimatorClipInfo(0) : anim.GetCurrentAnimatorClipInfo(0);
+            float best = 0f; string name = null;
+            foreach (var ci in infos) if (ci.weight > best && ci.clip != null) { best = ci.weight; name = ci.clip.name; }
+            packSmg = name != null && name.StartsWith("Anim_SMG");
+            return name != null && name.StartsWith("Anim_");
+        }
+
         bool InKneelState()
         {
-            var cur = anim.GetCurrentAnimatorStateInfo(0);
-            if (cur.shortNameHash == stateHash) return !anim.IsInTransition(0) || anim.GetNextAnimatorStateInfo(0).shortNameHash == stateHash;
-            return anim.IsInTransition(0) && anim.GetNextAnimatorStateInfo(0).shortNameHash == stateHash;
+            int s = TargetState();
+            firing = s == stateHash;
+            packClip = (firing || s == hideHash) && PackClipPlaying();
+            return firing || (s == hideHash && packClip);
         }
 
         void Update()
@@ -124,15 +152,19 @@ namespace Rambler.Combat
             var g = gun.transform;
             var rh = anim.GetBoneTransform(HumanBodyBones.RightHand);
 
-            //1. Right hand: barrel along the body's facing, grip upright
-            Vector3 fwd = transform.forward;
-            Quaternion want = Quaternion.LookRotation(fwd, Vector3.up) * Quaternion.Inverse(Quaternion.LookRotation(barrelLocal, upLocal));
+            //1. Right hand: in a pack clip, the gun sits the way the pack's own gun sits in that hand;
+            //   in our own kneel clip, barrel along the body's facing, grip upright
+            Quaternion gunAim = packClip
+                ? (packSmg ? Quaternion.LookRotation(rh.rotation * packSmgBarrelInHand, rh.rotation * packSmgUpInHand)
+                           : Quaternion.LookRotation(rh.rotation * packBarrelInHand, rh.rotation * packUpInHand))
+                : Quaternion.LookRotation(transform.forward, Vector3.up);
+            Quaternion want = gunAim * Quaternion.Inverse(Quaternion.LookRotation(barrelLocal, upLocal));
             Quaternion delta = want * Quaternion.Inverse(g.rotation);
             rh.rotation = Quaternion.Slerp(Quaternion.identity, delta, weight) * rh.rotation;
 
             //2. Spine: barrel onto the target
             Transform target = fighter.EnemyPos;
-            if (target != null && spineAimWeight > 0f)
+            if (firing && target != null && spineAimWeight > 0f)
             {
                 aim.transform = g;
                 aim.axis = barrelLocal;
