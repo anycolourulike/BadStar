@@ -5,6 +5,9 @@ namespace Rambler.Control
     //A preset is a role (e.g. Miner); what the character is comes from its CharacterType.
     public enum CharacterPreset
     {
-        Miner
+        Miner,
+        Guard,      //Copies AtlasMK3: guard AI, pistol, cover, weapon rig
+        Squad,      //Copies Hayes: companion brain, squad controller
+        Civilian    //Copies the Scientist: walks about, no weapon (e.g. a heist target)
     }
 }

@@ -26,6 +26,8 @@ namespace Rambler.EditorTools
         GameObject model;
         string characterName = "";
         bool placeInScene = true;
+        float targetHeight = 1.8f;
+        bool prepareModel = true;
         Vector2 logScroll;
         string log = "";
 
@@ -61,6 +63,17 @@ namespace Rambler.EditorTools
             if (EditorGUI.EndChangeCheck() && model != null && string.IsNullOrEmpty(characterName)) characterName = model.name;
             characterName = EditorGUILayout.TextField("Prefab Name", characterName);
             placeInScene = EditorGUILayout.Toggle("Place In Open Scene", placeInScene);
+            prepareModel = EditorGUILayout.Toggle(new GUIContent("Prepare Model First", "Humanoid avatar, real-world height via the import scale, Mixamo bone mapping if Unity's fails, URP materials."), prepareModel);
+            using (new EditorGUI.DisabledScope(!prepareModel))
+                targetHeight = EditorGUILayout.FloatField(new GUIContent("Target Height (m)", "Rescale the import to this height when it's more than 12% off. 0 keeps the file's size."), targetHeight);
+            using (new EditorGUI.DisabledScope(model == null || !EditorUtility.IsPersistent(model)))
+            {
+                if (GUILayout.Button("Prepare Model Only"))
+                {
+                    var r = new StringBuilder(); CharacterPipeline.PrepareModel(model, targetHeight, r); log = r.ToString();
+                    Debug.Log("[Character Setup] Prepare " + model.name + "\n" + log);
+                }
+            }
 
             EditorGUILayout.Space();
             using (new EditorGUI.DisabledScope(profile == null || profile.sourceCharacter == null || model == null || string.IsNullOrEmpty(characterName)))
@@ -103,6 +116,26 @@ namespace Rambler.EditorTools
                     p.rigController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/_Prefabs/Characters/Humans/Security/AtlasAnims/AtlasMK3CharacterController.controller");
                     p.startingWeapon = AssetDatabase.LoadAssetAtPath<Weapon>("Assets/_Scripts/Resources/Pistol.asset");
                     break;
+                case CharacterPreset.Guard:
+                    //Everything the guards have: guard AI, cover, pistol, weapon rig, the Guard health class
+                    p.sourceCharacter = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Prefabs/Characters/Humans/Security/AtlasMK3.prefab");
+                    p.characterClass = Rambler.Stats.CharacterClass.Guard;
+                    p.outputFolder = "Assets/_Prefabs/Characters/Humans/Guards";
+                    break;
+                case CharacterPreset.Squad:
+                    //A squad member like Hayes; keeps Hayes' tag and layer
+                    p.sourceCharacter = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Prefabs/Characters/Humans/Hayes/Hayes.prefab");
+                    p.tag = ""; p.layer = "";
+                    p.outputFolder = "Assets/_Prefabs/Characters/Humans/Squad";
+                    break;
+                case CharacterPreset.Civilian:
+                    //An unarmed walker like the Scientist; it has no weapon rig to copy
+                    p.sourceCharacter = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Prefabs/Characters/Humans/Scientist/Scientist.prefab");
+                    p.childrenToCopy = new string[0];
+                    p.characterClass = Rambler.Stats.CharacterClass.Human;
+                    p.tag = ""; p.layer = "";
+                    p.outputFolder = "Assets/_Prefabs/Characters/Humans/Civilians";
+                    break;
             }
             EnsureFolder(ProfileFolder);
             AssetDatabase.CreateAsset(p, AssetDatabase.GenerateUniqueAssetPath(ProfileFolder + "/" + preset + " Setup.asset"));
@@ -120,6 +153,8 @@ namespace Rambler.EditorTools
             GameObject character = null;
             try
             {
+                if (prepareModel && EditorUtility.IsPersistent(model) && AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(model)) is ModelImporter)
+                    CharacterPipeline.PrepareModel(model, targetHeight, report);
                 character = InstantiateModel(model);
                 character.name = characterName;
                 Transform root = character.transform;
@@ -154,6 +189,9 @@ namespace Rambler.EditorTools
 
                 ApplyProfile(character, source, avatar, report);
                 FitCollider(character, report);
+                CharacterPipeline.FitWeaponRig(character, source, report);
+                CharacterPipeline.PackHandMapping(character, report);
+                CharacterPipeline.Validate(character, report);
 
                 string path = SavePrefab(character, report);
                 if (placeInScene)
