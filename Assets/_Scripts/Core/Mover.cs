@@ -82,9 +82,47 @@ namespace Rambler.Movement
         [SerializeField] float maxAimMoveSpeed = 2.4f;
         [Tooltip("Top speed backing away while aiming (m/s).")]
         [SerializeField] float maxAimBackSpeed = 1.0f;
+        [Tooltip("Top speed side-stepping while aiming (m/s): nobody walks sideways quickly.")]
+        [SerializeField] float maxAimSideSpeed = 0.75f;
         static readonly int MoveXHash = Animator.StringToHash("MoveX");
         static readonly int MoveZHash = Animator.StringToHash("MoveZ");
         static readonly int AimingHash = Animator.StringToHash("Aiming");
+        static readonly int AimSetHash = Animator.StringToHash("AimSet");
+        static readonly int AimPlaybackHash = Animator.StringToHash("AimPlayback");
+        bool hasAimPlayback;
+
+        //TacticalMoves aim-movement clip speeds (normalized units/s) by direction: F, FR, R, BR, B, BL, L, FL
+        static readonly float[] PistolWalk = { 1.01f, 0.89f, 0.51f, 0.89f, 0.96f, 0.93f, 0.41f, 0.92f };
+        static readonly float[] PistolRun = { 2.70f, 2.31f, 2.73f, 3.00f, 2.71f, 2.31f, 2.73f, 3.00f };
+        static readonly float[] SmgWalk = { 1.07f, 1.12f, 0.48f, 1.12f, 1.12f, 1.13f, 0.48f, 1.12f };
+        static readonly float[] SmgRun = { 2.67f, 3.57f, 2.70f, 3.57f, 2.67f, 3.57f, 2.70f, 3.57f };
+
+        static float ByDirection(float[] table, float angle)
+        {
+            float a = Mathf.Repeat(angle, 360f) / 45f; int i = Mathf.FloorToInt(a) % 8;
+            return Mathf.Lerp(table[i], table[(i + 1) % 8], a - Mathf.Floor(a));
+        }
+
+        /// <summary>For the pack aim sets: the blend input (a pure walk or a pure run in that direction, at the
+        /// clip's own speed) and the playback rate that makes its feet match the actual speed. Mixing the walk
+        /// and run of one direction skates the feet, so this never does.</summary>
+        public static void AimFeed(int set, Vector2 velocity, out Vector2 feed, out float playback)
+        {
+            float speed = velocity.magnitude;
+            feed = Vector2.zero; playback = 1f;
+            if (set <= 0 || speed < 0.05f) return;
+            float angle = Mathf.Atan2(velocity.x, velocity.y) * Mathf.Rad2Deg;
+            float walk = ByDirection(set == 2 ? SmgWalk : PistolWalk, angle);
+            float run = ByDirection(set == 2 ? SmgRun : PistolRun, angle);
+            //Pick the gait whose playback rate is closer to 1 (as a ratio), within sensible limits
+            float rw = speed / walk, rr = speed / run;
+            bool useWalk = rw <= 1.7f && (rr < 0.55f || Mathf.Abs(Mathf.Log(rw)) <= Mathf.Abs(Mathf.Log(rr)));
+            float native = useWalk ? walk : run;
+            feed = velocity / speed * native;
+            playback = Mathf.Clamp(speed / native, 0.4f, 1.8f);
+        }
+        bool hasAimSet;
+        Combat.Fighter aimFighter;
         bool hasAimParams;
 
         static readonly int ForwardSpeedHash = Animator.StringToHash("forwardSpeed");
@@ -235,7 +273,7 @@ namespace Rambler.Movement
             {
                 animator = GetComponent<Animator>();
                 if (animator == null) return;
-                foreach (var p in animator.parameters) { if (p.nameHash == LocoSpeedHash) hasLocoSpeed = true; if (p.nameHash == AimingHash) hasAimParams = true; }
+                foreach (var p in animator.parameters) { if (p.nameHash == LocoSpeedHash) hasLocoSpeed = true; if (p.nameHash == AimingHash) hasAimParams = true; if (p.nameHash == AimSetHash) hasAimSet = true; if (p.nameHash == AimPlaybackHash) hasAimPlayback = true; }
             }
             if (navMeshAgent == null) navMeshAgent = GetComponent<NavMeshAgent>();
             Vector3 localVelocity = transform.InverseTransformDirection(navMeshAgent.velocity);
@@ -279,15 +317,26 @@ namespace Rambler.Movement
             if (hasAimParams)
             {
                 bool aiming = aimLocomotion && !navMeshAgent.updateRotation;
+                //Which aim-movement set fits the gun in hand (TacticalMoves pistol / SMG, else the Fists set)
+                if (hasAimSet)
+                {
+                    if (aimFighter == null) aimFighter = GetComponent<Combat.Fighter>();
+                    animator.SetFloat(AimSetHash, aimFighter != null && aimFighter.weaponConfig != null ? aimFighter.weaponConfig.CoverAnimSet : 0);
+                }
                 Vector3 lv = transform.InverseTransformDirection(navMeshAgent.velocity); lv.y = 0f;
                 float moveAngle = lv.sqrMagnitude > 0.04f ? Mathf.Abs(Vector3.SignedAngle(Vector3.forward, lv, Vector3.up)) : 0f;
                 //Heading straight for the target is just walking forward: the regular (speed-matched) locomotion does that best
                 bool strafing = aiming && lv.sqrMagnitude > 0.04f && moveAngle > 30f;
                 animator.SetBool(AimingHash, strafing || (aiming && lv.sqrMagnitude <= 0.04f));
                 if (aiming && moveAngle > 110f && navMeshAgent.speed > maxAimBackSpeed) navMeshAgent.speed = maxAimBackSpeed;
+                else if (aiming && moveAngle > 60f && navMeshAgent.speed > maxAimSideSpeed) navMeshAgent.speed = maxAimSideSpeed;
                 float k = animator.isHuman ? Mathf.Max(0.01f, animator.humanScale * transform.lossyScale.y) : 1f;
-                animator.SetFloat(MoveXHash, lv.x / k, 0.1f, Time.deltaTime);
-                animator.SetFloat(MoveZHash, lv.z / k, 0.1f, Time.deltaTime);
+                int set = hasAimSet && aimFighter != null && aimFighter.weaponConfig != null ? aimFighter.weaponConfig.CoverAnimSet : 0;
+                Vector2 feed = new Vector2(lv.x / k, lv.z / k); float aimPlayback = 1f;
+                if (set > 0) AimFeed(set, feed, out feed, out aimPlayback);
+                animator.SetFloat(MoveXHash, feed.x, 0.1f, Time.deltaTime);
+                animator.SetFloat(MoveZHash, feed.y, 0.1f, Time.deltaTime);
+                if (hasAimPlayback) animator.SetFloat(AimPlaybackHash, aimPlayback, 0.1f, Time.deltaTime);
                 if (aiming && navMeshAgent.speed > maxAimMoveSpeed) navMeshAgent.speed = maxAimMoveSpeed;
             }
         }
