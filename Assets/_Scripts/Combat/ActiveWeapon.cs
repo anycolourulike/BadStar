@@ -130,6 +130,9 @@ namespace Rambler.Combat
             return weaponRange;
         }
 
+        /// <summary>Each shot fired, and each reload started (body animations listen, e.g. CoverKneelAim).</summary>
+        public event System.Action Fired, Reloading;
+
         public void Reload()
         {
             if (magAmount <= 0) magAmount = MagazineSize();
@@ -225,6 +228,7 @@ namespace Rambler.Combat
 
         void ReloadAnimCheck()
         {
+            Reloading?.Invoke();
             if(reloadAmmoSFX == false)
             {
               AudioManager.PlayWeaponSound(weaponSFX: AudioManager.WeaponSound.weaponReload, this.transform.position);
@@ -294,6 +298,7 @@ namespace Rambler.Combat
 
         void ShootAnim()
         {
+            Fired?.Invoke();
             if (rigController == null) return;
             if(isNPC)
             {

@@ -57,6 +57,18 @@ namespace Rambler.Combat
 
         public bool Active => weight > 0.001f;
 
+        //Pack shoot / reload overlay on the "Pack Upper" layer
+        static readonly int PackShootHash = Animator.StringToHash("PackShoot");
+        static readonly int PackReloadHash = Animator.StringToHash("PackReload");
+        static readonly int PackShootState = Animator.StringToHash("Pack Shoot");
+        static readonly int PackReloadState = Animator.StringToHash("Pack Reload");
+        [Tooltip("Seconds the pack reload takes (the left hand leaves the gun meanwhile).")]
+        [SerializeField] float packReloadTime = 1.9f;
+        int upperLayer = -1;
+        float reloadUntil;
+        ActiveWeapon hooked;
+        bool Reloading => Time.time < reloadUntil;
+
         void Awake()
         {
             anim = GetComponent<Animator>();
@@ -92,6 +104,7 @@ namespace Rambler.Combat
             leftArm.SetChain(la, lf, lh, transform);
             leftArm.goal = AvatarIKGoal.LeftHand;
             leftArm.bendModifier = IKSolverLimb.BendModifier.Animation;
+            upperLayer = anim.GetLayerIndex("Pack Upper");
             ready = true;
         }
 
@@ -121,9 +134,46 @@ namespace Rambler.Combat
             return firing || (hiding && packClip);
         }
 
+        void OnDisable() { Hook(null); }
+
+        void Hook(ActiveWeapon gun)
+        {
+            if (hooked == gun) return;
+            if (hooked != null) { hooked.Fired -= OnFired; hooked.Reloading -= OnReloading; }
+            hooked = gun;
+            if (hooked != null) { hooked.Fired += OnFired; hooked.Reloading += OnReloading; }
+        }
+
+        bool PackGun => fighter != null && fighter.weaponConfig != null && fighter.weaponConfig.CoverAnimSet > 0;
+
+        void OnFired()
+        {
+            if (upperLayer >= 0 && Active && packClip && !Reloading) anim.SetTrigger(PackShootHash);
+        }
+
+        void OnReloading()
+        {
+            if (upperLayer < 0 || !PackGun || Reloading) return;
+            reloadUntil = Time.time + packReloadTime;
+            anim.ResetTrigger(PackShootHash);
+            anim.SetTrigger(PackReloadHash);
+        }
+
         void Update()
         {
             if (!ready) return;
+            Hook(fighter != null ? fighter.activeWeapon : null);
+            //NPCs wait out an empty magazine before refilling: show the reload while they wait
+            if (hooked != null && hooked.CurClip <= 0 && !Reloading && PackGun && Active) OnReloading();
+            if (upperLayer >= 0)
+            {
+                //The layer's resting state is empty (a default arms-down pose), so the layer fades out before the clip ends
+                var st = anim.GetCurrentAnimatorStateInfo(upperLayer);
+                bool overlay = st.shortNameHash == PackShootState || st.shortNameHash == PackReloadState;
+                float t = st.normalizedTime;
+                float target = !overlay ? 0f : t < 0.78f ? 1f : Mathf.Clamp01(1f - (t - 0.78f) / 0.12f);
+                anim.SetLayerWeight(upperLayer, Mathf.MoveTowards(anim.GetLayerWeight(upperLayer), target, Time.deltaTime / 0.06f));
+            }
             bool want = InKneelState() && fighter != null && fighter.activeWeapon != null;
             weight = Mathf.MoveTowards(weight, want ? 1f : 0f, Time.deltaTime / Mathf.Max(0.01f, blendTime));
             //The kneel's own arms hold the gun: let go of the standing weapon rigs (and give them back afterwards)
@@ -170,7 +220,7 @@ namespace Rambler.Combat
 
             //2. Spine: barrel onto the target
             Transform target = fighter.EnemyPos;
-            if (firing && target != null && spineAimWeight > 0f)
+            if (firing && target != null && spineAimWeight > 0f && !Reloading)
             {
                 aim.transform = g;
                 aim.axis = barrelLocal;
@@ -180,7 +230,7 @@ namespace Rambler.Combat
             }
 
             //3. Left hand onto the gun
-            if (lhMarker != null && supportHandWeight > 0f)
+            if (lhMarker != null && supportHandWeight > 0f && !Reloading) //The left hand fetches the magazine
             {
                 leftArm.IKPosition = lhMarker.position;
                 leftArm.IKRotation = lhMarker.rotation;
