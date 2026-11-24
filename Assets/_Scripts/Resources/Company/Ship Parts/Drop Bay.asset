@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89b0290f45320544181b413bbe2680cf, type: 3}
+  m_Name: Drop Bay
+  m_EditorClassIdentifier: 
+  itemID: 2010f42e-0706-43b3-b1ce-5326cc9b19ec
+  displayName: Drop Bay
+  description: 'A rapid-exit bay: one more seat and a quick pickup.'
+  icon: {fileID: 0}
+  price: 3200
+  slot: 3
+  stats:
+    crewSeats: 1
+    range: 0
+    hull: 0
+    cargoPay: 0
+    cargoTime: 0
+  ability: 4

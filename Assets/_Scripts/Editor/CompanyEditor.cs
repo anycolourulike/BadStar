@@ -90,7 +90,7 @@ namespace Rambler.EditorTools
 
         // ---------- Starter content ----------
 
-        const string Root = "Assets/_Scripts/Resources/Company";
+        internal const string Root = "Assets/_Scripts/Resources/Company";
         const string HayesPrefab = "Assets/_Prefabs/Characters/Humans/Hayes/Hayes.prefab";
         const string WeaponRoot = "Assets/_Scripts/Resources/";
 
@@ -255,7 +255,7 @@ namespace Rambler.EditorTools
             });
         }
 
-        static void Common(SerializedObject so, string displayName, string description, Sprite icon, int price)
+        internal static void Common(SerializedObject so, string displayName, string description, Sprite icon, int price)
         {
             so.FindProperty("displayName").stringValue = displayName;
             so.FindProperty("description").stringValue = description;
@@ -301,7 +301,7 @@ namespace Rambler.EditorTools
             FillWeapons(t.FindPropertyRelative("weapons"), weapons);
         }
 
-        static T Asset<T>(string path, System.Action<SerializedObject> fill) where T : ScriptableObject
+        internal static T Asset<T>(string path, System.Action<SerializedObject> fill) where T : ScriptableObject
         {
             var existing = AssetDatabase.LoadAssetAtPath<T>(path);
             if (existing != null) return existing;
@@ -314,7 +314,7 @@ namespace Rambler.EditorTools
             return asset;
         }
 
-        static void Folder(string path)
+        internal static void Folder(string path)
         {
             if (AssetDatabase.IsValidFolder(path)) return;
             Folder(Path.GetDirectoryName(path).Replace('\\', '/'));

@@ -9,7 +9,7 @@ namespace Rambler.Crew
     //The player's outfit: money, crew, the current list of recruits, and everyone who has left or fallen.
     //One copy lives for the whole game (it makes itself on the first scene load) and is saved with the game
     //under a fixed key, not per scene. Ships and businesses will be added here.
-    public class Company : MonoBehaviour, ISaveable
+    public partial class Company : MonoBehaviour, ISaveable
     {
         const string SaveKey = "Company";
         const string PoolResource = "Company/Recruit Pool";
@@ -228,6 +228,7 @@ namespace Rambler.Crew
         public void CompleteMission(int payout, IEnumerable<UpgradeDefinition> rewards = null, IEnumerable<Rambler.Combat.Weapon> weaponRewards = null)
         {
             credits += payout;
+            PayBusinesses();
             if (rewards != null) foreach (var u in rewards) if (u != null) stash.Add(u.ItemID);
             if (weaponRewards != null) foreach (var w in weaponRewards) if (w != null) armoury.Add(new WeaponItem(w.GetItemID()));
             foreach (var r in crew)
@@ -441,11 +442,15 @@ namespace Rambler.Crew
             public List<string> armoury;        //Saves from before attachments: plain weapon IDs
             public List<WeaponItem> armouryItems;
             public List<string> stash;
+            [System.Runtime.Serialization.OptionalField] public List<ShipRecord> ships;
+            [System.Runtime.Serialization.OptionalField] public List<BusinessRecord> businesses;
+            [System.Runtime.Serialization.OptionalField] public List<string> spareParts;
+            [System.Runtime.Serialization.OptionalField] public string activeShipId;
         }
 
         object ISaveable.CaptureState()
         {
-            return new CompanyState
+            var state = new CompanyState
             {
                 credits = credits,
                 deathRule = deathRule,
@@ -456,6 +461,8 @@ namespace Rambler.Crew
                 armouryItems = new List<WeaponItem>(armoury),
                 stash = new List<string>(stash),
             };
+            CaptureFleet(state);
+            return state;
         }
 
         void ISaveable.RestoreState(object state)
@@ -469,6 +476,7 @@ namespace Rambler.Crew
             else if (s.armoury != null) foreach (var id in s.armoury) armoury.Add(new WeaponItem(id));
             stash.Clear();
             if (s.stash != null) stash.AddRange(s.stash);
+            RestoreFleet(s);
             //Saved mid-mission: whoever was deployed is back in the crew
             foreach (var r in crew) if (r.status == CrewStatus.OnMission) r.status = CrewStatus.Hired;
             Changed?.Invoke();

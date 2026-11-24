@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67f27afa0000ed748881fc8b442f5296, type: 3}
+  m_Name: Shearwater
+  m_EditorClassIdentifier: 
+  itemID: a4bf0c5f-b6bb-415c-a1d6-62fed1d2f7b3
+  displayName: Shearwater
+  description: Light Titan cargo hauler with a rear ramp. Short hops, a small crew,
+    cheap to run.
+  icon: {fileID: 0}
+  price: 8000
+  prefab: {fileID: 6779870227566588106, guid: f2a7346fa5fd4114eb6f43293bf5661a, type: 3}
+  modelRotation: {x: 90, y: 0, z: 0}
+  baseStats:
+    crewSeats: 2
+    range: 1
+    hull: 400
+    cargoPay: 0
+    cargoTime: 0
+  cargoRunPay: 300
+  cargoRunMinutes: 20
+  cargoRunWear: 0.1
+  repairCostPerPoint: 2

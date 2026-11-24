@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89b0290f45320544181b413bbe2680cf, type: 3}
+  m_Name: Cargo Racks
+  m_EditorClassIdentifier: 
+  itemID: a8112a51-b0f6-4906-8e40-0da1db0b239d
+  displayName: Cargo Racks
+  description: Better packing, more paying freight.
+  icon: {fileID: 0}
+  price: 1000
+  slot: 2
+  stats:
+    crewSeats: 0
+    range: 0
+    hull: 0
+    cargoPay: 20
+    cargoTime: 0
+  ability: 0

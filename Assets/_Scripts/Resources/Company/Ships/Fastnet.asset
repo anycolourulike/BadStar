@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67f27afa0000ed748881fc8b442f5296, type: 3}
+  m_Name: Fastnet
+  m_EditorClassIdentifier: 
+  itemID: 7e972231-afda-4718-9789-5ec5a22685d5
+  displayName: Fastnet
+  description: 'Big ore freighter: six fans, three hoppers and room for the whole
+    squad. Long, well-paid runs.'
+  icon: {fileID: 0}
+  price: 22000
+  prefab: {fileID: 2805404162194408564, guid: 5b06338e8a3bb814797dc650ae840a71, type: 3}
+  modelRotation: {x: 0, y: 0, z: 0}
+  baseStats:
+    crewSeats: 4
+    range: 2
+    hull: 900
+    cargoPay: 0
+    cargoTime: 0
+  cargoRunPay: 900
+  cargoRunMinutes: 45
+  cargoRunWear: 0.1
+  repairCostPerPoint: 3
