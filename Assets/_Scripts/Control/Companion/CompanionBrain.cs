@@ -17,6 +17,10 @@ namespace Rambler.Control
     //a companion / stops it when the player takes control of it or it dies.
     //Replaces AIController + FieldOfView on companions (both are switched off while this runs).
     //On enemy robots that can be hacked it stays off until RobotHack switches it on.
+    //An order from the Command screen. Follow is normal play; Hold and Move give the companion a post to fight
+    //from (it returns there after a fight, however far the player goes); Attack makes it go after one enemy.
+    public enum SquadOrder { Follow, Hold, Move, Attack }
+
     [RequireComponent(typeof(NavMeshAgent))]
     public class CompanionBrain : MonoBehaviour
     {
@@ -73,10 +77,60 @@ namespace Rambler.Control
         public float RunPace => mover != null ? Mathf.Min(MaxSpeed, mover.MaxCleanSpeed) : MaxSpeed;
         public Vector3 Eye => transform.position + Vector3.up * eyeHeight;
 
-        //Something to fight (or, without a gun, to hide from): seen recently, alive, and the player isn't running off without us
+        // ---------- Orders (Command screen) ----------
+
+        public SquadOrder Order { get; private set; } = SquadOrder.Follow;
+        //Where a Hold or Move order puts it
+        public Vector3 OrderPosition { get; private set; }
+        public GameObject OrderTarget { get; private set; }
+        public bool HasPost => Order == SquadOrder.Hold || Order == SquadOrder.Move;
+
+        public void OrderFollow()
+        {
+            Order = SquadOrder.Follow;
+            OrderTarget = null;
+        }
+
+        public void OrderHold() => OrderHoldAt(transform.position);
+
+        public void OrderHoldAt(Vector3 position)
+        {
+            Order = SquadOrder.Hold;
+            OrderPosition = position;
+            OrderTarget = null;
+        }
+
+        //Go there, then hold there
+        public void OrderMove(Vector3 destination)
+        {
+            if (NavMesh.SamplePosition(destination, out var hit, 3f, NavMesh.AllAreas)) destination = hit.position;
+            Order = SquadOrder.Move;
+            OrderPosition = destination;
+            OrderTarget = null;
+        }
+
+        public void OrderAttack(GameObject target)
+        {
+            if (target == null || !IsAlive(target)) return;
+            Order = SquadOrder.Attack;
+            OrderTarget = target;
+            Target = target;
+            LastSeenTime = Time.time;
+        }
+
+        //Called by FollowLeader on reaching a Move order's spot
+        public void ReachedPost()
+        {
+            if (Order == SquadOrder.Move) Order = SquadOrder.Hold;
+        }
+
+        //Something to fight (or, without a gun, to hide from): an ordered target, or one seen recently while
+        //the player isn't running off without us
         public bool HasEnemy =>
-            SquadOrders.WeaponsFree && Target != null && IsAlive(Target) && Time.time - LastSeenTime <= memory &&
-            (LeaderInReach || SquadOrders.HoldPosition); //Holding a post: fight from it however far away the player is
+            Target != null && IsAlive(Target) &&
+            (Order == SquadOrder.Attack ||
+             (SquadOrders.WeaponsFree && Time.time - LastSeenTime <= memory &&
+              (LeaderInReach || SquadOrders.HoldPosition || HasPost))); //Holding a post: fight from it however far away the player is
 
         //Has a gun. Unarmed or melee companions hide instead of fighting: charging gunmen just gets them killed
         public bool CanShoot =>
@@ -132,6 +186,7 @@ namespace Rambler.Control
             Leader = newLeader;
             if (IsControlled)
             {
+                OrderFollow(); //The player drives it now; an old order shouldn't resume when control moves on
                 StopTree();
                 Target = null;
                 TargetVisible = false;
@@ -164,6 +219,8 @@ namespace Rambler.Control
                 return;
             }
             if (IsControlled) return;
+            //At the spot it was sent to (even if a fight broke out on the way): it holds there now
+            if (Order == SquadOrder.Move && (transform.position - OrderPosition).sqrMagnitude < 1.44f) Order = SquadOrder.Hold;
             //The tree can end on its own (e.g. a task fails out); a living companion always restarts it
             if (treeRunning && tree != null && !tree.IsRunning()) treeRunning = false;
             if (!treeRunning) StartTree(); //e.g. the tree wasn't ready the first time
@@ -188,7 +245,21 @@ namespace Rambler.Control
                 candidates.AddRange(GameObject.FindGameObjectsWithTag("Enemy"));
             }
 
-            Vector3 around = Leader != null ? Leader.transform.position : transform.position;
+            //Ordered to attack: that enemy is the target until it is down, seen or not (the Fighter closes in)
+            if (Order == SquadOrder.Attack)
+            {
+                if (OrderTarget != null && IsAlive(OrderTarget) && OrderTarget.CompareTag("Enemy"))
+                {
+                    Target = OrderTarget;
+                    TargetVisible = HasLineOfSight(OrderTarget);
+                    LastSeenTime = Time.time;
+                    return;
+                }
+                OrderFollow();
+            }
+
+            //On a post it fights what threatens the post; otherwise what threatens the player
+            Vector3 around = HasPost ? OrderPosition : Leader != null ? Leader.transform.position : transform.position;
             GameObject best = null;
             float bestDist = float.MaxValue;
             foreach (var c in candidates)

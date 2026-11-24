@@ -47,6 +47,25 @@ namespace Rambler.Control.CompanionTasks
         public override TaskStatus OnUpdate()
         {
             if (brain == null) return TaskStatus.Failure;
+            //A Hold or Move order from the Command screen: go to the post (running) and stay there
+            if (brain.HasPost && !brain.IsControlled)
+            {
+                Vector3 post = brain.OrderPosition;
+                if (Flat(post - transform.position).magnitude <= m_Tolerance.Value)
+                {
+                    Halt();
+                    brain.ReachedPost();
+                    return TaskStatus.Running;
+                }
+                float postSpeed = Mathf.Clamp01(brain.RunPace / Mathf.Max(0.1f, brain.MaxSpeed));
+                if (!moving || (post - lastDestination).sqrMagnitude > 0.25f)
+                {
+                    brain.MoveTo(post, postSpeed);
+                    lastDestination = post;
+                    moving = true;
+                }
+                return TaskStatus.Running;
+            }
             var leader = brain.Leader;
             //Holding where the player left it (a mission's plan), or nobody to follow
             if (leader == null || brain.IsControlled || SquadOrders.HoldPosition)

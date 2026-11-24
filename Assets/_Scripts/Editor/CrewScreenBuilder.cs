@@ -18,14 +18,14 @@ namespace Rambler.EditorTools
         const string FontPath = "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset";
         const string CirclePath = "Assets/_AssetPacks/UI/Grunge UI Kit/Source Files/Panels/Circle/circle4.png";
 
-        static readonly Color WindowCol = Hex("0A0F17F0"), PanelCol = Hex("171F29D9"), TileCol = Hex("293D52E6");
-        static readonly Color Orange = Hex("F29E33FF"), Red = Hex("E64033FF"), Blue = Hex("4CA6F2FF"), Dim = new Color(1, 1, 1, 0.65f);
+        internal static readonly Color WindowCol = Hex("0A0F17F0"), PanelCol = Hex("171F29D9"), TileCol = Hex("293D52E6");
+        internal static readonly Color Orange = Hex("F29E33FF"), Red = Hex("E64033FF"), Blue = Hex("4CA6F2FF"), Dim = new Color(1, 1, 1, 0.65f);
 
-        static Sprite uiSprite, circle;
-        static TMP_FontAsset font;
+        internal static Sprite uiSprite, circle;
+        internal static TMP_FontAsset font;
 
         [MenuItem("Tools/Company/Build Crew Screen")]
-        static void BuildAll()
+        internal static void BuildAll()
         {
             Load();
             BuildScreen();
@@ -34,7 +34,7 @@ namespace Rambler.EditorTools
             Debug.Log("[Company] Crew screen built into " + PlayerCorePath + " (HUD/CrewScreen); terminal prefab at " + TerminalPath + ".");
         }
 
-        static void Load()
+        internal static void Load()
         {
             uiSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
             circle = AssetDatabase.LoadAssetAtPath<Sprite>(CirclePath);
@@ -43,7 +43,7 @@ namespace Rambler.EditorTools
 
         // ---------- The window ----------
 
-        static void BuildScreen()
+        internal static void BuildScreen()
         {
             var root = PrefabUtility.LoadPrefabContents(PlayerCorePath);
             try
@@ -98,7 +98,7 @@ namespace Rambler.EditorTools
             finally { PrefabUtility.UnloadPrefabContents(root); }
         }
 
-        static void BuildRecruitPage(RectTransform window, SerializedObject so)
+        internal static void BuildRecruitPage(RectTransform window, SerializedObject so)
         {
             var page = Rect("RecruitPage", window);
             Body(page);
@@ -121,7 +121,7 @@ namespace Rambler.EditorTools
             Set(so, "candidateTemplate", item);
         }
 
-        static void BuildCrewPage(RectTransform window, SerializedObject so)
+        internal static void BuildCrewPage(RectTransform window, SerializedObject so)
         {
             var page = Rect("CrewPage", window);
             Body(page);
@@ -180,7 +180,7 @@ namespace Rambler.EditorTools
             Set(so, "fireButton", fire); Set(so, "fireLabel", fireLabel);
         }
 
-        static RectTransform Page(string name, RectTransform detail, SerializedObject so, string field)
+        internal static RectTransform Page(string name, RectTransform detail, SerializedObject so, string field)
         {
             var page = Rect(name, detail);
             page.anchorMin = Vector2.zero; page.anchorMax = Vector2.one;
@@ -189,7 +189,7 @@ namespace Rambler.EditorTools
             return page;
         }
 
-        static void BuildSkillsPage(RectTransform page, SerializedObject so)
+        internal static void BuildSkillsPage(RectTransform page, SerializedObject so)
         {
             var content = Scroll(page, false, 8, new RectOffset(0, 12, 0, 0));
             var row = Img("SkillTemplate", content, TileCol).rectTransform;
@@ -209,7 +209,7 @@ namespace Rambler.EditorTools
             Set(so, "skillTemplate", item);
         }
 
-        static void BuildLoadoutPage(RectTransform page, SerializedObject so)
+        internal static void BuildLoadoutPage(RectTransform page, SerializedObject so)
         {
             var carriedCol = Rect("Carried", page);
             carriedCol.anchorMin = new Vector2(0, 0); carriedCol.anchorMax = new Vector2(0.5f, 1); carriedCol.offsetMin = Vector2.zero; carriedCol.offsetMax = new Vector2(-12, 0);
@@ -232,14 +232,14 @@ namespace Rambler.EditorTools
             Set(so, "armouryEmptyText", empty);
         }
 
-        static RectTransform Inset(RectTransform col)
+        internal static RectTransform Inset(RectTransform col)
         {
             var r = Rect("List", col);
             r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = Vector2.zero; r.offsetMax = new Vector2(0, -52);
             return r;
         }
 
-        static CrewUIItem WeaponRow(string name, RectTransform content, bool twoButtons)
+        internal static CrewUIItem WeaponRow(string name, RectTransform content, bool twoButtons)
         {
             var row = Img(name, content, TileCol).rectTransform;
             Size(row, new Vector2(560, 104));
@@ -266,7 +266,7 @@ namespace Rambler.EditorTools
             return item;
         }
 
-        static void BuildTrainingPage(RectTransform page, SerializedObject so)
+        internal static void BuildTrainingPage(RectTransform page, SerializedObject so)
         {
             var status = Txt("Status", page, "", 30, TextAlignmentOptions.MidlineLeft);
             TopLeft(status.rectTransform, new Vector2(4, 0), new Vector2(1150, 46)); status.color = Dim;
@@ -290,7 +290,7 @@ namespace Rambler.EditorTools
 
         // ---------- The terminal prefab ----------
 
-        static void BuildTerminalPrefab()
+        internal static void BuildTerminalPrefab()
         {
             if (!AssetDatabase.IsValidFolder(TerminalFolder)) AssetDatabase.CreateFolder("Assets/_Prefabs", "Company");
             var root = new GameObject("CrewTerminal");
@@ -336,7 +336,7 @@ namespace Rambler.EditorTools
 
         //Drops a terminal where the Scene view is looking
         [MenuItem("Tools/Company/Place Crew Terminal")]
-        static void PlaceTerminal()
+        internal static void PlaceTerminal()
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(TerminalPath);
             if (prefab == null) { BuildAll(); prefab = AssetDatabase.LoadAssetAtPath<GameObject>(TerminalPath); }
@@ -349,7 +349,7 @@ namespace Rambler.EditorTools
             Selection.activeGameObject = go;
         }
 
-        static Material Mat(string path, Shader shader, Color color, Color emission)
+        internal static Material Mat(string path, Shader shader, Color color, Color emission)
         {
             var m = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (m != null) return m;
@@ -362,7 +362,7 @@ namespace Rambler.EditorTools
 
         // ---------- UI helpers ----------
 
-        static void Portrait(RectTransform parent, CrewUIItem item, Vector2 topOffset, float size, bool topCentered)
+        internal static void Portrait(RectTransform parent, CrewUIItem item, Vector2 topOffset, float size, bool topCentered)
         {
             item.portrait = Img("Portrait", parent, Color.gray);
             if (topCentered) TopCenter((RectTransform)item.portrait.transform, topOffset, new Vector2(size, size));
@@ -373,7 +373,7 @@ namespace Rambler.EditorTools
         }
 
         //A scrolling list; returns the content to put items in
-        static RectTransform Scroll(RectTransform parent, bool horizontal, float spacing, RectOffset padding)
+        internal static RectTransform Scroll(RectTransform parent, bool horizontal, float spacing, RectOffset padding)
         {
             var viewport = Rect("Viewport", parent);
             Stretch(viewport);
@@ -396,7 +396,7 @@ namespace Rambler.EditorTools
             return content;
         }
 
-        static void Size(RectTransform r, Vector2 size)
+        internal static void Size(RectTransform r, Vector2 size)
         {
             r.sizeDelta = size;
             var le = r.gameObject.GetComponent<LayoutElement>();
@@ -404,7 +404,7 @@ namespace Rambler.EditorTools
             le.preferredWidth = size.x; le.preferredHeight = size.y; le.minHeight = size.y;
         }
 
-        static Button Btn(string name, RectTransform parent, Color color, string text, float fontSize, Vector2 topLeft, Vector2 size, out TextMeshProUGUI label)
+        internal static Button Btn(string name, RectTransform parent, Color color, string text, float fontSize, Vector2 topLeft, Vector2 size, out TextMeshProUGUI label)
         {
             var img = Img(name, parent, color);
             TopLeft(img.rectTransform, topLeft, size);
@@ -417,7 +417,7 @@ namespace Rambler.EditorTools
             return b;
         }
 
-        static Image Img(string name, RectTransform parent, Color color, Sprite sprite = null)
+        internal static Image Img(string name, RectTransform parent, Color color, Sprite sprite = null)
         {
             var r = Rect(name, parent);
             var img = r.gameObject.AddComponent<Image>();
@@ -427,7 +427,7 @@ namespace Rambler.EditorTools
             return img;
         }
 
-        static TextMeshProUGUI Txt(string name, RectTransform parent, string text, float size, TextAlignmentOptions align)
+        internal static TextMeshProUGUI Txt(string name, RectTransform parent, string text, float size, TextAlignmentOptions align)
         {
             var r = Rect(name, parent);
             var t = r.gameObject.AddComponent<TextMeshProUGUI>();
@@ -436,7 +436,7 @@ namespace Rambler.EditorTools
             return t;
         }
 
-        static RectTransform Rect(string name, Transform parent)
+        internal static RectTransform Rect(string name, Transform parent)
         {
             var go = new GameObject(name, typeof(RectTransform));
             go.layer = LayerMask.NameToLayer("UI");
@@ -444,32 +444,32 @@ namespace Rambler.EditorTools
             return (RectTransform)go.transform;
         }
 
-        static void Body(RectTransform r) { r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = new Vector2(30, 88); r.offsetMax = new Vector2(-30, -126); }
-        static void Stretch(RectTransform r) { r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero; }
-        static void Center(Component c, Vector2 size) { var r = (RectTransform)c.transform; r.anchorMin = r.anchorMax = r.pivot = new Vector2(0.5f, 0.5f); r.anchoredPosition = Vector2.zero; r.sizeDelta = size; }
-        static void Place(RectTransform r, Vector2 anchor, Vector2 pos, Vector2 size) { r.anchorMin = r.anchorMax = r.pivot = anchor; r.anchoredPosition = pos; r.sizeDelta = size; }
-        static void TopLeft(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(0, 1), pos, size);
-        static void TopRight(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(1, 1), pos, size);
-        static void TopCenter(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(0.5f, 1), pos, size);
-        static void BottomLeft(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(0, 0), pos, size);
-        static void BottomRight(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(1, 0), pos, size);
-        static void BottomCenter(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(0.5f, 0), pos, size);
-        static void LeftMid(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(0, 0.5f), pos, size);
+        internal static void Body(RectTransform r) { r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = new Vector2(30, 88); r.offsetMax = new Vector2(-30, -126); }
+        internal static void Stretch(RectTransform r) { r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero; }
+        internal static void Center(Component c, Vector2 size) { var r = (RectTransform)c.transform; r.anchorMin = r.anchorMax = r.pivot = new Vector2(0.5f, 0.5f); r.anchoredPosition = Vector2.zero; r.sizeDelta = size; }
+        internal static void Place(RectTransform r, Vector2 anchor, Vector2 pos, Vector2 size) { r.anchorMin = r.anchorMax = r.pivot = anchor; r.anchoredPosition = pos; r.sizeDelta = size; }
+        internal static void TopLeft(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(0, 1), pos, size);
+        internal static void TopRight(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(1, 1), pos, size);
+        internal static void TopCenter(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(0.5f, 1), pos, size);
+        internal static void BottomLeft(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(0, 0), pos, size);
+        internal static void BottomRight(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(1, 0), pos, size);
+        internal static void BottomCenter(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(0.5f, 0), pos, size);
+        internal static void LeftMid(Component c, Vector2 pos, Vector2 size) => Place((RectTransform)c.transform, new Vector2(0, 0.5f), pos, size);
 
-        static void Set(SerializedObject so, string field, Object value)
+        internal static void Set(SerializedObject so, string field, Object value)
         {
             var p = so.FindProperty(field);
             if (p == null) { Debug.LogError("[Company] CrewScreen has no field '" + field + "'"); return; }
             p.objectReferenceValue = value;
         }
 
-        static Transform Find(Transform t, string name)
+        internal static Transform Find(Transform t, string name)
         {
             if (t.name == name) return t;
             foreach (Transform c in t) { var f = Find(c, name); if (f != null) return f; }
             return null;
         }
 
-        static Color Hex(string h) { ColorUtility.TryParseHtmlString("#" + h, out var c); return c; }
+        internal static Color Hex(string h) { ColorUtility.TryParseHtmlString("#" + h, out var c); return c; }
     }
 }
