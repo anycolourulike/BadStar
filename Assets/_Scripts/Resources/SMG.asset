@@ -26,7 +26,11 @@ MonoBehaviour:
   fireInterval: 0.12
   magazineSize: 0
   maxReserve: 0
-  itemID: 0283dd68-d444-4fac-abb5-af5bc76913b6
+  burstShots: {x: 0, y: 0}
+  burstPause: {x: 0, y: 0}
+  baseSpread: 0
+  kickPerShot: 0
+  itemID: 342072ae-8c6b-4a9f-b9d4-3b05869560de
   displayName: SMG
   description: 
   icon: {fileID: 21300000, guid: ab9d7ce33e7c1da46b1270fbd582cde4, type: 3}

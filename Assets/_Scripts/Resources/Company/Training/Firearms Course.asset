@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 348c1e470ff7ace4f915cee9873a5fc6, type: 3}
+  m_Name: Firearms Course
+  m_EditorClassIdentifier: 
+  itemID: b08b2919-f44c-4114-94ff-5eb090763dd4
+  displayName: Firearms Course
+  description: Range time with an instructor.
+  icon: {fileID: 0}
+  price: 300
+  skill: {fileID: 11400000, guid: 974096d24c7632a418051e53dd1eeba7, type: 2}
+  levelsGained: 1
+  missions: 1
+  maxStartLevel: 9

@@ -61,6 +61,9 @@ namespace Rambler.Stats
             Instantiate(levelUpParticleEffect, transform);
         }
 
+        //Hired crew get their skill and gear bonuses this way (see RosterMember)
+        public void EnableModifiers() => shouldUseModifiers = true;
+
         public float GetStat(Stat stat)
         {
             return (GetBaseStat(stat) + GetAdditiveModifier(stat)) * (1 + GetPercentageModifier(stat)/100);

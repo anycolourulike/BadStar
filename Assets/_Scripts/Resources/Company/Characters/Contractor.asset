@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5618a629bfcd83348a107452a4a28b04, type: 3}
+  m_Name: Contractor
+  m_EditorClassIdentifier: 
+  itemID: a59420ff-40b2-4b69-a67f-7b3fa98dc2fe
+  displayName: Contractor
+  description: A hired gun. Body for generated recruits (uses the Hayes model until
+    more are made).
+  icon: {fileID: 0}
+  price: 250
+  prefab: {fileID: 7455834645819883378, guid: 74fbfe6b193b62f47ab6c59e4b2fb449, type: 3}
+  type: 0
+  characterClass: 1
+  unique: 0
+  wagePerMission: 30
+  startingExperience: 0
+  startingSkills: []
+  startingWeapons:
+  - {fileID: 11400000, guid: 2c5c155b418e8c540bca75c901bf3e3a, type: 2}

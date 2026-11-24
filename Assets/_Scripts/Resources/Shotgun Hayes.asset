@@ -26,7 +26,11 @@ MonoBehaviour:
   fireInterval: 0.6
   magazineSize: 0
   maxReserve: 0
-  itemID: f244564d-2176-4383-abaf-7c8257e6e8ee
+  burstShots: {x: 0, y: 0}
+  burstPause: {x: 0, y: 0}
+  baseSpread: 0
+  kickPerShot: 0
+  itemID: e3ed4d81-cc35-447c-b996-daf1de108939
   displayName: Shotgun
   description: 
   icon: {fileID: 21300000, guid: 5a7e20334b9f0df418e251086e3b9e2b, type: 3}

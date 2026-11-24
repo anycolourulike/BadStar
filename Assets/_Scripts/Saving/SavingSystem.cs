@@ -115,18 +115,37 @@ namespace Rambler.Saving
             }
         }
 
+        //Game-wide state that isn't tied to a scene object (e.g. the Company), saved under a fixed key
+        const string GlobalPrefix = "global:";
+        static readonly Dictionary<string, ISaveable> globalSaveables = new Dictionary<string, ISaveable>();
+
+        public static void RegisterGlobal(string key, ISaveable saveable) => globalSaveables[key] = saveable;
+
+        public static void UnregisterGlobal(string key, ISaveable saveable)
+        {
+            if (globalSaveables.TryGetValue(key, out var current) && current == saveable) globalSaveables.Remove(key);
+        }
+
         private void CaptureState(Dictionary<string, object> state)
         {
+            foreach (var global in globalSaveables)
+            {
+                state[GlobalPrefix + global.Key] = global.Value.CaptureState();
+            }
             foreach (SaveableEntity saveable in FindObjectsOfType<SaveableEntity>())
             {
                 state[saveable.GetUniqueIdentifier()] = saveable.CaptureState();
-            }    
+            }
             state["lastSceneBuildIndex"] = LevelManager.Instance.sceneRef;
             state["destination"] = LevelManager.Instance.destinationID;
         }
 
         private void RestoreState(Dictionary<string, object> state)
         {
+            foreach (var global in globalSaveables)
+            {
+                if (state.TryGetValue(GlobalPrefix + global.Key, out object saved)) global.Value.RestoreState(saved);
+            }
             foreach (SaveableEntity saveable in FindObjectsOfType<SaveableEntity>())
             {
                 string id = saveable.GetUniqueIdentifier();
