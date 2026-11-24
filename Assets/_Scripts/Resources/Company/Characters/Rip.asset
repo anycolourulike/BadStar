@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5618a629bfcd83348a107452a4a28b04, type: 3}
+  m_Name: Rip
+  m_EditorClassIdentifier: 
+  itemID: df8a45b2-d6d9-4570-9581-13b5a19bbc66
+  displayName: Rip
+  description: Hard-rock miner. Knows machines and explosives, tough as old boots,
+    handy with a shotgun.
+  icon: {fileID: 0}
+  price: 450
+  prefab: {fileID: 6788098005938388227, guid: 97890259060a01c42aea4550d3c17b6e, type: 3}
+  type: 0
+  characterClass: 1
+  unique: 1
+  wagePerMission: 45
+  startingExperience: 0
+  startingSkills:
+  - skill: {fileID: 11400000, guid: fb4a498fd0d48b74dbe3146ce1685a6e, type: 2}
+    level: 3
+  - skill: {fileID: 11400000, guid: f9835b0bcdbbc2b4f9af56d6869e0812, type: 2}
+    level: 3
+  - skill: {fileID: 11400000, guid: 19ff5e539943e16468ced658918243f7, type: 2}
+    level: 2
+  startingWeapons:
+  - {fileID: 11400000, guid: 55d3c3ac4b5537c43820d04feedb85e1, type: 2}
+  - {fileID: 11400000, guid: 2c5c155b418e8c540bca75c901bf3e3a, type: 2}

@@ -31,7 +31,7 @@ MonoBehaviour:
   baseSpread: 0
   kickPerShot: 0
   itemID: c36d7068-ccf8-4733-8acd-d332c83f04ec
-  displayName: SMG
+  displayName: Pistol
   description: 
   icon: {fileID: 21300000, guid: fe1d9f21ea531624e99622a5e152a39a, type: 3}
   pickup: {fileID: 7979591142669461427, guid: 021937047b8c8e644a6d42cd63ba916a, type: 3}

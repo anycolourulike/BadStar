@@ -29,8 +29,12 @@ namespace Rambler.Crew
         [SerializeField] float rehireFeeMultiplier = 1.5f;
         [Tooltip("Missions an injured crew member sits out (Injuries death rule).")]
         [Min(1)] [SerializeField] int injuryMissions = 2;
+        [Tooltip("Weapons one crew member can carry (the first is equipped).")]
+        [Min(1)] [SerializeField] int maxCarried = 3;
 
         readonly List<CharacterRecord> crew = new List<CharacterRecord>();
+        //Weapon item IDs in the Company armoury (one entry per weapon)
+        readonly List<string> armoury = new List<string>();
         readonly List<CharacterRecord> candidates = new List<CharacterRecord>();
         readonly List<CharacterRecord> former = new List<CharacterRecord>();
         readonly List<CharacterRecord> fallen = new List<CharacterRecord>();
@@ -46,6 +50,8 @@ namespace Rambler.Crew
         public IReadOnlyList<CharacterRecord> Candidates => candidates;
         public IReadOnlyList<CharacterRecord> Former => former;
         public IReadOnlyList<CharacterRecord> Fallen => fallen;
+        public IReadOnlyList<string> Armoury => armoury;
+        public int MaxCarried => maxCarried;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Bootstrap()
@@ -267,6 +273,63 @@ namespace Rambler.Crew
             r.status = CrewStatus.Hired;
         }
 
+        // ---------- Loadout and armoury ----------
+
+        //Gear can't change while someone is out in the field (their spawned copy owns it until they're back)
+        public bool CanEditLoadout(CharacterRecord r, out string reason)
+        {
+            reason = null;
+            if (r == null || !crew.Contains(r)) reason = "Not in the crew";
+            else if (r.status == CrewStatus.OnMission) reason = r.displayName + " is on a mission";
+            return reason == null;
+        }
+
+        //Make one of their carried weapons the equipped one
+        public bool EquipWeapon(CharacterRecord r, string weaponId)
+        {
+            if (!CanEditLoadout(r, out _)) return false;
+            int i = r.weaponIds.IndexOf(weaponId);
+            if (i <= 0) return i == 0;
+            r.weaponIds.RemoveAt(i);
+            r.weaponIds.Insert(0, weaponId);
+            Changed?.Invoke();
+            return true;
+        }
+
+        public bool StoreWeapon(CharacterRecord r, string weaponId)
+        {
+            if (!CanEditLoadout(r, out _) || !r.weaponIds.Remove(weaponId)) return false;
+            armoury.Add(weaponId);
+            Changed?.Invoke();
+            return true;
+        }
+
+        public bool CanTakeWeapon(CharacterRecord r, string weaponId, out string reason)
+        {
+            if (!CanEditLoadout(r, out reason)) return false;
+            if (!armoury.Contains(weaponId)) reason = "Not in the armoury";
+            else if (r.weaponIds.Count >= maxCarried) reason = r.displayName + " can carry " + maxCarried + " weapons";
+            else if (r.weaponIds.Contains(weaponId)) reason = "Already carrying one";
+            return reason == null;
+        }
+
+        public bool TakeWeapon(CharacterRecord r, string weaponId)
+        {
+            if (!CanTakeWeapon(r, weaponId, out _)) return false;
+            armoury.Remove(weaponId);
+            r.weaponIds.Add(weaponId);
+            Changed?.Invoke();
+            return true;
+        }
+
+        //Loot, purchases and mission rewards go here
+        public void AddToArmoury(string weaponId)
+        {
+            if (string.IsNullOrEmpty(weaponId)) return;
+            armoury.Add(weaponId);
+            Changed?.Invoke();
+        }
+
         // ---------- Saving ----------
 
         [Serializable]
@@ -275,6 +338,7 @@ namespace Rambler.Crew
             public int credits;
             public DeathRule deathRule;
             public List<CharacterRecord> crew, candidates, former, fallen;
+            public List<string> armoury;
         }
 
         object ISaveable.CaptureState()
@@ -287,6 +351,7 @@ namespace Rambler.Crew
                 candidates = new List<CharacterRecord>(candidates),
                 former = new List<CharacterRecord>(former),
                 fallen = new List<CharacterRecord>(fallen),
+                armoury = new List<string>(armoury),
             };
         }
 
@@ -296,6 +361,8 @@ namespace Rambler.Crew
             credits = s.credits;
             deathRule = s.deathRule;
             Fill(crew, s.crew); Fill(candidates, s.candidates); Fill(former, s.former); Fill(fallen, s.fallen);
+            armoury.Clear();
+            if (s.armoury != null) armoury.AddRange(s.armoury);
             //Saved mid-mission: whoever was deployed is back in the crew
             foreach (var r in crew) if (r.status == CrewStatus.OnMission) r.status = CrewStatus.Hired;
             Changed?.Invoke();

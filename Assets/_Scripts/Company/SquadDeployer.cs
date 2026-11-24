@@ -42,6 +42,7 @@ namespace Rambler.Crew
         public RosterMember Deploy(CharacterRecord record)
         {
             if (record == null || !record.CanDeploy) return null;
+            if (playerSelector == null) playerSelector = FindObjectOfType<PlayerSelector>(); //Deploy can come before Start
             if (playerSelector == null) { Debug.LogWarning("[SquadDeployer] No PlayerSelector in the scene."); return null; }
             if (playerSelector.IsFull) { Debug.Log("[SquadDeployer] Squad is full; " + record.displayName + " stays behind."); return null; }
             var definition = record.Definition;
