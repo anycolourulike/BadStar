@@ -24,6 +24,8 @@ MonoBehaviour:
     crewSeats: 2
     range: 1
     hull: 400
+    power: 5
+    firepower: 40
     cargoPay: 0
     cargoTime: 0
   cargoRunPay: 300

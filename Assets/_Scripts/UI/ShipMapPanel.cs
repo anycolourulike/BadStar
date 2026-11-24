@@ -33,6 +33,11 @@ namespace Rambler.UI
 
         [SerializeField] float refreshInterval = 0.25f;
 
+        //Set by a ship battle: the map only works while someone mans the Ship Systems station (null = always)
+        public static System.Func<bool> Access;
+        public static string AccessNote;
+        public bool IsOpen => window != null && window.activeSelf;
+
         readonly List<ShipMapRoom> tiles = new();
         ShipMapRoom selected;
         string lastAction = "";
@@ -74,8 +79,10 @@ namespace Rambler.UI
 
         void UpdateOpenButton()
         {
-            if (openButton != null) openButton.gameObject.SetActive(HasAnySystem());
+            if (openButton != null) openButton.gameObject.SetActive(HasAnySystem() && Access == null);
         }
+
+        static bool Allowed => Access == null || Access();
 
         static bool HasAnySystem()
         {
@@ -90,7 +97,7 @@ namespace Rambler.UI
 
         public void Open()
         {
-            if (window == null || ShipAI.Instance == null) return;
+            if (window == null || ShipAI.Instance == null || !Allowed) return;
             window.SetActive(true);
             BuildTiles();
             lastAction = "";
@@ -105,6 +112,7 @@ namespace Rambler.UI
         void Update()
         {
             if (window == null || !window.activeSelf) return;
+            if (!Allowed) { Close(); return; } //The Systems station was left or lost power
             timer += Time.unscaledDeltaTime;
             if (timer < refreshInterval) return;
             timer = 0f;
@@ -178,7 +186,8 @@ namespace Rambler.UI
                 if (tile != null) tile.Refresh(sensors, tile == selected);
             }
 
-            if (titleText != null)
+            if (titleText != null && Access != null) titleText.text = "SHIP SYSTEMS" + (string.IsNullOrEmpty(AccessNote) ? "" : "  <size=70%>" + AccessNote + "</size>");
+            else if (titleText != null)
             {
                 int hacked = 0;
                 foreach (var terminal in ShipTerminal.All)

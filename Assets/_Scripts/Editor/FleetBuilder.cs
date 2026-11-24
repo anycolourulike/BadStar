@@ -411,8 +411,29 @@ namespace Rambler.EditorTools
             Business("Ore Refinery", "Turns the mine's ore into something worth shipping.", 9000, 120, 150, 10f, 3000);
             Business("Security Firm", "Guards for hire. Pays well every time you're out on a job.", 12000, 200, 120, 12f, 4000);
 
+            //Ship battle numbers (power pips, firepower), also filled in on assets made before they existed
+            PowerAndFire("Ships/Shearwater", "baseStats", 5, 40);
+            PowerAndFire("Ships/Fastnet", "baseStats", 7, 60);
+            PowerAndFire("Ship Parts/Tuned Thrusters", "stats", 1, 0);
+            PowerAndFire("Ship Parts/Long-haul Drive", "stats", 2, 0);
+            PowerAndFire("Ship Parts/Rocket Pod", "stats", 0, 30);
+            PowerAndFire("Ship Parts/Point Defence", "stats", 0, 10);
+
             AssetDatabase.SaveAssets();
             Debug.Log("[Company] Fleet content is in " + root + " (Ships, Ship Parts, Businesses).");
+        }
+
+        static void PowerAndFire(string asset, string field, int power, int firepower)
+        {
+            var a = AssetDatabase.LoadAssetAtPath<ScriptableObject>(CompanyEditor.Root + "/" + asset + ".asset");
+            if (a == null) return;
+            var so = new SerializedObject(a);
+            var st = so.FindProperty(field);
+            if (st.FindPropertyRelative("power").intValue != 0 || st.FindPropertyRelative("firepower").intValue != 0) return;
+            st.FindPropertyRelative("power").intValue = power;
+            st.FindPropertyRelative("firepower").intValue = firepower;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(a);
         }
 
         static void Ship(string name, string description, string prefabPath, int price, int seats, int range, int hull, int cargoPay, float cargoMinutes, int repairPerPoint, Vector3 modelRotation)
@@ -579,7 +600,7 @@ namespace Rambler.EditorTools
             var player = Copy(playerSrc, scene, "Rambler", map);
             foreach (var pair in new[] { (coreSrc, core), (camsSrc, cams), (playerSrc, player) })
                 CopyLinks(pair.Item1, pair.Item2, map);
-            if (player != null) player.transform.SetPositionAndRotation(new Vector3(6, 0.05f, 6), Quaternion.Euler(0, 180, 0));
+            PlaceInstance(player, new Vector3(6, 0.05f, 6), Quaternion.Euler(0, 180, 0));
             if (core != null) core.transform.position = Vector3.zero;
             if (cams != null) cams.transform.position = Vector3.zero;
             TrimPlayers(core);
@@ -606,7 +627,7 @@ namespace Rambler.EditorTools
 
         // ---------- Scene helpers ----------
 
-        static GameObject Box(string name, Transform parent, Vector3 pos, Vector3 size, Material m)
+        internal static GameObject Box(string name, Transform parent, Vector3 pos, Vector3 size, Material m)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = name;
@@ -617,7 +638,7 @@ namespace Rambler.EditorTools
             return go;
         }
 
-        static void PadWithMarkings(string name, Transform parent, Vector3 centre, Vector2 size, Material pad, Material stripe)
+        internal static void PadWithMarkings(string name, Transform parent, Vector3 centre, Vector2 size, Material pad, Material stripe)
         {
             var p = new GameObject(name).transform;
             p.SetParent(parent, false);
@@ -645,7 +666,7 @@ namespace Rambler.EditorTools
             return pos;
         }
 
-        static void Place(string prefabPath, Vector3 pos, Transform parent)
+        internal static void Place(string prefabPath, Vector3 pos, Transform parent)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
             if (prefab == null) { Debug.LogWarning("[Company] Missing " + prefabPath); return; }
@@ -656,7 +677,7 @@ namespace Rambler.EditorTools
         }
 
         //Drops a parked ship so its lowest point rests on the deck
-        static void SitOnPad(GameObject ship, float deckY)
+        internal static void SitOnPad(GameObject ship, float deckY)
         {
             var rs = ship.GetComponentsInChildren<Renderer>();
             if (rs.Length == 0) return;
@@ -665,7 +686,7 @@ namespace Rambler.EditorTools
             ship.transform.position += Vector3.up * (deckY - b.min.y);
         }
 
-        static GameObject Root(Scene s, string name)
+        internal static GameObject Root(Scene s, string name)
         {
             foreach (var r in s.GetRootGameObjects()) if (r.name == name) return r;
             Debug.LogWarning("[Company] " + s.name + " has no " + name);
@@ -673,7 +694,7 @@ namespace Rambler.EditorTools
         }
 
         //A fresh instance of the same prefab, with the same overrides (scene links are fixed up after)
-        static GameObject Copy(GameObject source, Scene scene, string name, Dictionary<GameObject, GameObject> map)
+        internal static GameObject Copy(GameObject source, Scene scene, string name, Dictionary<GameObject, GameObject> map)
         {
             if (source == null) return null;
             var prefab = PrefabUtility.GetCorrespondingObjectFromSource(source);
@@ -686,7 +707,7 @@ namespace Rambler.EditorTools
 
         //Applies the source instance's overrides to the copy, pointing scene links at the matching new objects.
         //Links to things that aren't in the new scene (Hayes, Pervis...) are dropped.
-        static void CopyLinks(GameObject source, GameObject copy, Dictionary<GameObject, GameObject> map)
+        internal static void CopyLinks(GameObject source, GameObject copy, Dictionary<GameObject, GameObject> map)
         {
             if (source == null || copy == null) return;
             var mods = new List<PropertyModification>();
@@ -729,8 +750,18 @@ namespace Rambler.EditorTools
             return string.Join("/", parts);
         }
 
+        //Moves a prefab instance and records it as an override (Rambler's root is a RectTransform, whose anchored
+        //position would otherwise be put back to the prefab's)
+        internal static void PlaceInstance(GameObject go, Vector3 position, Quaternion rotation)
+        {
+            if (go == null) return;
+            if (go.transform is RectTransform rt) rt.anchoredPosition3D = position;
+            go.transform.SetPositionAndRotation(position, rotation);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(go.transform);
+        }
+
         //The Sandbox lists Hayes and Pervis as players too; here it's just Rambler (crew are deployed at runtime)
-        static void TrimPlayers(GameObject core)
+        internal static void TrimPlayers(GameObject core)
         {
             if (core == null) return;
             var selector = core.GetComponent<Rambler.Control.PlayerSelector>();

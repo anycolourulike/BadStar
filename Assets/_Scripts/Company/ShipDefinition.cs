@@ -12,7 +12,7 @@ namespace Rambler.Crew
         [SerializeField] GameObject prefab = null;
         [Tooltip("Extra rotation that stands the model upright, for prefabs exported Z-up without the importer's 90° X.")]
         [SerializeField] Vector3 modelRotation = Vector3.zero;
-        [SerializeField] ShipStats baseStats = new ShipStats { crewSeats = 2, range = 1, hull = 400 };
+        [SerializeField] ShipStats baseStats = new ShipStats { crewSeats = 2, range = 1, hull = 400, power = 5, firepower = 40 };
         [Header("Cargo runs")]
         [Tooltip("Credits a cargo run pays before part bonuses.")]
         [Min(0)] [SerializeField] int cargoRunPay = 300;

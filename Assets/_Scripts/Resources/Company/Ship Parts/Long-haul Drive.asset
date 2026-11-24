@@ -22,6 +22,8 @@ MonoBehaviour:
     crewSeats: 0
     range: 2
     hull: 0
+    power: 2
+    firepower: 0
     cargoPay: 0
     cargoTime: -25
   ability: 0

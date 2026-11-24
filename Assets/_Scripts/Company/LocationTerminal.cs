@@ -41,7 +41,7 @@ namespace Rambler.Crew
             if (openButton != null) openButton.onClick.AddListener(Open);
         }
 
-        void Update()
+        protected virtual void Update()
         {
             bool show = ActivePlayerInRange() && !ScreenOpen;
             if (prompt.gameObject.activeSelf != show) prompt.gameObject.SetActive(show);
@@ -55,10 +55,22 @@ namespace Rambler.Crew
             OpenScreen();
         }
 
-        bool ActivePlayerInRange()
+        protected bool ActivePlayerInRange()
         {
-            var player = playerSelector != null ? playerSelector.activePlayer : null;
+            var player = ActivePlayer;
             return player != null && inside.ContainsKey(player);
+        }
+
+        protected GameObject ActivePlayer => playerSelector != null ? playerSelector.activePlayer : null;
+
+        //Player-side characters standing in the trigger, alive
+        protected IEnumerable<GameObject> Inside
+        {
+            get
+            {
+                foreach (var c in inside.Keys)
+                    if (ShipCharacters.IsAlive(c)) yield return c;
+            }
         }
 
         void OnTriggerEnter(Collider other)

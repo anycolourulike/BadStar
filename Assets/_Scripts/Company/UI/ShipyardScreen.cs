@@ -147,6 +147,7 @@ namespace Rambler.Crew.UI
                 "Crew seats   " + b.crewSeats + "\n" +
                 "Range   " + b.range + "\n" +
                 "Hull   " + b.hull + "\n" +
+                "Power   " + b.power + "   ·   Firepower   " + b.firepower + "\n" +
                 "Cargo run   " + Money(sel.CargoRunPay) + " in " + Duration(System.TimeSpan.FromMinutes(sel.CargoRunMinutes)));
             for (int i = 0; i < slotsItem.slots.Length && i < Slots.Length; i++) DrawSlot(i, Slots[i], null, false, null);
             CrewUIItem.SetText(statusText, "");
@@ -203,6 +204,7 @@ namespace Rambler.Crew.UI
                 "Crew seats   " + st.crewSeats + Bonus(st.crewSeats - b.crewSeats) + "\n" +
                 "Range   " + st.range + Bonus(st.range - b.range) + "\n" +
                 "Hull   " + sel.Hull + " / " + sel.MaxHull + "\n" +
+                "Power   " + st.power + Bonus(st.power - b.power) + "   ·   Firepower   " + st.firepower + Bonus(st.firepower - b.firepower) + "\n" +
                 "Cargo run   " + Money(sel.CargoRunPay) + " in " + Duration(sel.CargoRunTime) +
                 (abilities.Count > 0 ? "\nAbilities   " + string.Join(", ", abilities) : ""));
 

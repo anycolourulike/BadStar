@@ -21,18 +21,24 @@ namespace Rambler.Crew
         public int range;
         [Tooltip("Hull points. Damage comes from cargo runs (and later from missions).")]
         public int hull;
+        [Tooltip("Power pips the Engines station shares out between Navigation, Weapons and Systems in a ship battle.")]
+        public int power;
+        [Tooltip("Damage of each shot from the Weapons station.")]
+        public int firepower;
         [Tooltip("Percent more pay from cargo runs.")]
         public float cargoPay;
         [Tooltip("Percent change in cargo run time (negative is faster).")]
         public float cargoTime;
 
-        public bool IsEmpty => crewSeats == 0 && range == 0 && hull == 0 && cargoPay == 0f && cargoTime == 0f;
+        public bool IsEmpty => crewSeats == 0 && range == 0 && hull == 0 && power == 0 && firepower == 0 && cargoPay == 0f && cargoTime == 0f;
 
         public static ShipStats operator +(ShipStats a, ShipStats b) => new ShipStats
         {
             crewSeats = a.crewSeats + b.crewSeats,
             range = a.range + b.range,
             hull = a.hull + b.hull,
+            power = a.power + b.power,
+            firepower = a.firepower + b.firepower,
             cargoPay = a.cargoPay + b.cargoPay,
             cargoTime = a.cargoTime + b.cargoTime,
         };
@@ -44,6 +50,8 @@ namespace Rambler.Crew
             if (crewSeats != 0) parts.Add(Signed(crewSeats) + (Mathf.Abs(crewSeats) == 1 ? " seat" : " seats"));
             if (range != 0) parts.Add(Signed(range) + " range");
             if (hull != 0) parts.Add(Signed(hull) + " hull");
+            if (power != 0) parts.Add(Signed(power) + " power");
+            if (firepower != 0) parts.Add(Signed(firepower) + " firepower");
             if (cargoPay != 0f) parts.Add(Signed(cargoPay) + "% cargo pay");
             if (cargoTime != 0f) parts.Add(Signed(cargoTime) + "% run time");
             return string.Join("  ", parts);
