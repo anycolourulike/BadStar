@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d05c5bfba72797643aac470a3ca6bb78, type: 3}
+  m_Name: Foregrip
+  m_EditorClassIdentifier: 
+  itemID: af306b60-a1a1-4211-af47-f2860e6995ac
+  displayName: Foregrip
+  description: A second hand on the gun.
+  icon: {fileID: 0}
+  price: 250
+  slot: 3
+  fits: 14
+  modifiers:
+    damage: 0
+    spread: -5
+    kick: -25
+    fireRate: 0
+    magazine: 0
+    damageTaken: 0
+    health: 0
+    speed: 0

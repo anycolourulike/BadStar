@@ -14,7 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   itemID: 2eab9971-ef40-4dc7-93ce-72ed0e609c30
   displayName: Firearms
-  description: Accuracy and handling with guns.
+  description: 'Accuracy and handling with guns: -4% spread and -3% recoil a level.'
   icon: {fileID: 0}
   maxLevel: 10
   bonuses: []
+  combatPerLevel:
+    damage: 0
+    spread: -4
+    kick: -3
+    fireRate: 0
+    magazine: 0
+    damageTaken: 0
+    health: 0
+    speed: 0

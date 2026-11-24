@@ -178,6 +178,7 @@ namespace Rambler.Combat
                 if (fighter != null) owner = fighter.gameObject;
             }
             firedProjectile.Owner = owner;
+            firedProjectile.DamageMultiplier = CombatModifiers.DamageOf(owner); //Barrels, ammo upgrades (1 for enemies)
             firedProjectile.SetTarget(target);
             if (MuzzleFlash != null)
             {
@@ -265,8 +266,15 @@ namespace Rambler.Combat
             RefreshDisplays();
         }
 
-        //Weapon asset value, or the old per-type default when it is 0
+        //Weapon asset value (or the old per-type default when it is 0), times any magazine upgrade on the owner
         int MagazineSize()
+        {
+            int size = BaseMagazineSize();
+            if (size <= 0) return size;
+            return Mathf.Max(1, Mathf.RoundToInt(size * CombatModifiers.MagazineOf(owner != null ? owner : GetComponentInParent<Fighter>()?.gameObject)));
+        }
+
+        int BaseMagazineSize()
         {
             if (config != null && config.MagazineSize > 0) return config.MagazineSize;
             switch (weaponType)

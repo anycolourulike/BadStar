@@ -13,7 +13,7 @@ namespace Rambler.Crew
     [RequireComponent(typeof(Collider))]
     public class CrewTerminal : MonoBehaviour
     {
-        [SerializeField] string label = "CREW";
+        [SerializeField] string label = "HOME";
         [Tooltip("World space canvas shown while the active player is in range (made at runtime if empty).")]
         [SerializeField] Canvas prompt;
         [SerializeField] Button openButton;

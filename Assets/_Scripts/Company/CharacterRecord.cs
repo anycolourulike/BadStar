@@ -43,7 +43,62 @@ namespace Rambler.Crew
         public int missionsOut;          //Missions left injured or training
         public string trainingCourseId;
         public List<SkillRecord> skills = new List<SkillRecord>();
+        //Before attachments existed records held plain weapon IDs; Weapons converts them on first use
         public List<string> weaponIds = new List<string>();
+        public List<WeaponItem> weapons;
+        //Fitted gear (one per gear slot: armour, implant)
+        public List<string> gearIds = new List<string>();
+
+        //The guns carried, the first is equipped
+        public List<WeaponItem> Weapons
+        {
+            get
+            {
+                if (weapons == null)
+                {
+                    weapons = new List<WeaponItem>();
+                    if (weaponIds != null) foreach (var id in weaponIds) weapons.Add(new WeaponItem(id));
+                    weaponIds?.Clear();
+                }
+                return weapons;
+            }
+        }
+
+        public WeaponItem Equipped => Weapons.Count > 0 ? Weapons[0] : null;
+
+        public UpgradeDefinition GearIn(UpgradeSlot slot)
+        {
+            if (gearIds == null) gearIds = new List<string>();
+            foreach (var id in gearIds)
+            {
+                var u = CatalogAsset.GetFromID<UpgradeDefinition>(id);
+                if (u != null && u.Slot == slot) return u;
+            }
+            return null;
+        }
+
+        //Gear and skill effects (no weapon); add a weapon's attachments for the full picture
+        public Rambler.Combat.ModifierSet PersonalModifiers
+        {
+            get
+            {
+                var total = new Rambler.Combat.ModifierSet();
+                if (gearIds != null)
+                    foreach (var id in gearIds)
+                    {
+                        var u = CatalogAsset.GetFromID<UpgradeDefinition>(id);
+                        if (u != null) total += u.Modifiers;
+                    }
+                foreach (var s in skills)
+                {
+                    var def = CatalogAsset.GetFromID<SkillDefinition>(s.skillId);
+                    if (def != null) total += def.CombatPerLevel * s.level;
+                }
+                return total;
+            }
+        }
+
+        public Rambler.Combat.ModifierSet ModifiersWith(WeaponItem weapon) => weapon != null ? PersonalModifiers + weapon.Modifiers : PersonalModifiers;
 
         public CharacterDefinition Definition => CatalogAsset.GetFromID<CharacterDefinition>(definitionId);
         public TrainingCourse Training => CatalogAsset.GetFromID<TrainingCourse>(trainingCourseId);
@@ -84,7 +139,7 @@ namespace Rambler.Crew
                 experience = definition.StartingExperience,
             };
             foreach (var s in definition.StartingSkills) r.SetSkill(s.skill, s.level);
-            foreach (var w in definition.StartingWeapons) if (w != null) r.weaponIds.Add(w.GetItemID());
+            foreach (var w in definition.StartingWeapons) if (w != null) r.Weapons.Add(new WeaponItem(w.GetItemID()));
             return r;
         }
     }

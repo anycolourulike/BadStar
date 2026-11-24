@@ -71,7 +71,7 @@ namespace Rambler.Combat
         }
 
         //Seconds between attacks for the current weapon: the Weapon asset's fireInterval, or timeBetweenAttacks
-        public float AttackInterval => weaponConfig != null && weaponConfig.FireInterval > 0f ? weaponConfig.FireInterval : timeBetweenAttacks;
+        public float AttackInterval => (weaponConfig != null && weaponConfig.FireInterval > 0f ? weaponConfig.FireInterval : timeBetweenAttacks) / CombatModifiers.FireRateOf(gameObject);
 
         WeaponIK weaponIk;
         FieldOfView FOV;
@@ -168,7 +168,8 @@ namespace Rambler.Combat
             float dist = dir.magnitude;
             if (dist < 0.01f) return aim;
             dir /= dist;
-            float spread = (weaponConfig != null ? weaponConfig.BaseSpread : 1.5f) + kick;
+            //Sights, grips and the Firearms skill tighten the cone (CombatModifiers; 1 for enemies)
+            float spread = ((weaponConfig != null ? weaponConfig.BaseSpread : 1.5f) + kick) * CombatModifiers.SpreadOf(gameObject);
             var agent = mover != null ? mover.GetComponent<UnityEngine.AI.NavMeshAgent>() : null;
             if (agent != null && agent.velocity.sqrMagnitude > 0.25f) spread += movingSpread;
             Vector3 side = Vector3.Cross(Vector3.up, dir); if (side.sqrMagnitude < 1e-4f) side = Vector3.right; side.Normalize();
@@ -181,7 +182,7 @@ namespace Rambler.Combat
 
         void AfterShot()
         {
-            kick = Mathf.Min(maxKick, kick + (weaponConfig != null ? weaponConfig.KickPerShot : 1.5f));
+            kick = Mathf.Min(maxKick, kick + (weaponConfig != null ? weaponConfig.KickPerShot : 1.5f) * CombatModifiers.KickOf(gameObject));
             burstShotsFired++;
             if (burstSize <= 0) StartNewBurst();
             if (burstShotsFired >= burstSize)

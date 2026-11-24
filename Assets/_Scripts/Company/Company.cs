@@ -32,9 +32,14 @@ namespace Rambler.Crew
         [Tooltip("Weapons one crew member can carry (the first is equipped).")]
         [Min(1)] [SerializeField] int maxCarried = 3;
 
+        [Tooltip("What the Home Terminal shop sells (Resources/Company/Shop Catalogue when empty).")]
+        [SerializeField] ShopCatalogue shop = null;
+
         readonly List<CharacterRecord> crew = new List<CharacterRecord>();
-        //Weapon item IDs in the Company armoury (one entry per weapon)
-        readonly List<string> armoury = new List<string>();
+        //Guns in the Company armoury, each with its attachments
+        readonly List<WeaponItem> armoury = new List<WeaponItem>();
+        //Upgrades owned but not fitted (bought, looted, rewarded), one entry each
+        readonly List<string> stash = new List<string>();
         readonly List<CharacterRecord> candidates = new List<CharacterRecord>();
         readonly List<CharacterRecord> former = new List<CharacterRecord>();
         readonly List<CharacterRecord> fallen = new List<CharacterRecord>();
@@ -50,8 +55,10 @@ namespace Rambler.Crew
         public IReadOnlyList<CharacterRecord> Candidates => candidates;
         public IReadOnlyList<CharacterRecord> Former => former;
         public IReadOnlyList<CharacterRecord> Fallen => fallen;
-        public IReadOnlyList<string> Armoury => armoury;
+        public IReadOnlyList<WeaponItem> Armoury => armoury;
+        public IReadOnlyList<string> Stash => stash;
         public int MaxCarried => maxCarried;
+        public ShopCatalogue Shop => shop;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Bootstrap()
@@ -66,6 +73,7 @@ namespace Rambler.Crew
             Instance = this;
             DontDestroyOnLoad(gameObject);
             if (recruitPool == null) recruitPool = Resources.Load<RecruitPool>(PoolResource);
+            if (shop == null) shop = Resources.Load<ShopCatalogue>("Company/Shop Catalogue");
             SavingSystem.RegisterGlobal(SaveKey, this);
         }
 
@@ -215,11 +223,13 @@ namespace Rambler.Crew
             Changed?.Invoke();
         }
 
-        //End of a mission: the payout comes in, wages go out (credits can go into debt), the deployed are back,
-        //injuries and training tick down, and a new list of recruits turns up.
-        public void CompleteMission(int payout)
+        //End of a mission: the payout (and any reward gear and guns) comes in, wages go out (credits can go into
+        //debt), the deployed are back, injuries and training tick down, and a new list of recruits turns up.
+        public void CompleteMission(int payout, IEnumerable<UpgradeDefinition> rewards = null, IEnumerable<Rambler.Combat.Weapon> weaponRewards = null)
         {
             credits += payout;
+            if (rewards != null) foreach (var u in rewards) if (u != null) stash.Add(u.ItemID);
+            if (weaponRewards != null) foreach (var w in weaponRewards) if (w != null) armoury.Add(new WeaponItem(w.GetItemID()));
             foreach (var r in crew)
             {
                 credits -= r.wage;
@@ -284,50 +294,140 @@ namespace Rambler.Crew
             return reason == null;
         }
 
-        //Make one of their carried weapons the equipped one
-        public bool EquipWeapon(CharacterRecord r, string weaponId)
+        //Make one of their carried guns the equipped one
+        public bool EquipWeapon(CharacterRecord r, WeaponItem w)
         {
             if (!CanEditLoadout(r, out _)) return false;
-            int i = r.weaponIds.IndexOf(weaponId);
+            int i = r.Weapons.IndexOf(w);
             if (i <= 0) return i == 0;
-            r.weaponIds.RemoveAt(i);
-            r.weaponIds.Insert(0, weaponId);
+            r.Weapons.RemoveAt(i);
+            r.Weapons.Insert(0, w);
             Changed?.Invoke();
             return true;
         }
 
-        public bool StoreWeapon(CharacterRecord r, string weaponId)
+        //Into the armoury, attachments and all
+        public bool StoreWeapon(CharacterRecord r, WeaponItem w)
         {
-            if (!CanEditLoadout(r, out _) || !r.weaponIds.Remove(weaponId)) return false;
-            armoury.Add(weaponId);
+            if (!CanEditLoadout(r, out _) || !r.Weapons.Remove(w)) return false;
+            armoury.Add(w);
             Changed?.Invoke();
             return true;
         }
 
-        public bool CanTakeWeapon(CharacterRecord r, string weaponId, out string reason)
+        public bool CanTakeWeapon(CharacterRecord r, WeaponItem w, out string reason)
         {
             if (!CanEditLoadout(r, out reason)) return false;
-            if (!armoury.Contains(weaponId)) reason = "Not in the armoury";
-            else if (r.weaponIds.Count >= maxCarried) reason = r.displayName + " can carry " + maxCarried + " weapons";
-            else if (r.weaponIds.Contains(weaponId)) reason = "Already carrying one";
+            if (!armoury.Contains(w)) reason = "Not in the armoury";
+            else if (r.Weapons.Count >= maxCarried) reason = "Carries " + maxCarried + " max";
+            else foreach (var c in r.Weapons) if (c.weaponId == w.weaponId) reason = "Has one";
             return reason == null;
         }
 
-        public bool TakeWeapon(CharacterRecord r, string weaponId)
+        public bool TakeWeapon(CharacterRecord r, WeaponItem w)
         {
-            if (!CanTakeWeapon(r, weaponId, out _)) return false;
-            armoury.Remove(weaponId);
-            r.weaponIds.Add(weaponId);
+            if (!CanTakeWeapon(r, w, out _)) return false;
+            armoury.Remove(w);
+            r.Weapons.Add(w);
             Changed?.Invoke();
             return true;
         }
 
-        //Loot, purchases and mission rewards go here
+        //Where an upgrade from the stash would go on this person: gear in its slot; an attachment on the equipped
+        //gun if it fits, otherwise the first carried gun it fits
+        public bool CanFit(CharacterRecord r, UpgradeDefinition u, out WeaponItem target, out string reason)
+        {
+            target = null;
+            if (!CanEditLoadout(r, out reason)) return false;
+            if (u == null || !stash.Contains(u.ItemID)) { reason = "Not in the stash"; return false; }
+            if (u.IsGear) return true;
+            foreach (var w in r.Weapons)
+                if (u.FitsWeapon(w.Weapon)) { target = w; return true; }
+            reason = "Fits no gun carried";
+            return false;
+        }
+
+        //Fits it from the stash; whatever was in that slot goes back to the stash
+        public bool Fit(CharacterRecord r, UpgradeDefinition u)
+        {
+            if (!CanFit(r, u, out var target, out _)) return false;
+            stash.Remove(u.ItemID);
+            if (u.IsGear)
+            {
+                var old = r.GearIn(u.Slot);
+                if (old != null) { r.gearIds.Remove(old.ItemID); stash.Add(old.ItemID); }
+                r.gearIds.Add(u.ItemID);
+            }
+            else
+            {
+                var old = target.AttachmentIn(u.Slot);
+                if (old != null) { target.attachmentIds.Remove(old.ItemID); stash.Add(old.ItemID); }
+                target.attachmentIds.Add(u.ItemID);
+            }
+            Changed?.Invoke();
+            return true;
+        }
+
+        public bool RemoveAttachment(CharacterRecord r, WeaponItem w, UpgradeSlot slot)
+        {
+            if (!CanEditLoadout(r, out _) || w == null) return false;
+            var u = w.AttachmentIn(slot);
+            if (u == null) return false;
+            w.attachmentIds.Remove(u.ItemID);
+            stash.Add(u.ItemID);
+            Changed?.Invoke();
+            return true;
+        }
+
+        public bool RemoveGear(CharacterRecord r, UpgradeSlot slot)
+        {
+            if (!CanEditLoadout(r, out _)) return false;
+            var u = r.GearIn(slot);
+            if (u == null) return false;
+            r.gearIds.Remove(u.ItemID);
+            stash.Add(u.ItemID);
+            Changed?.Invoke();
+            return true;
+        }
+
+        // ---------- Shop, loot and rewards ----------
+
+        public bool Buy(UpgradeDefinition u)
+        {
+            if (u == null || !Spend(u.Price)) return false;
+            stash.Add(u.ItemID);
+            Changed?.Invoke();
+            return true;
+        }
+
+        public bool BuyWeapon(Rambler.Combat.Weapon w, int price)
+        {
+            if (w == null || !Spend(price)) return false;
+            armoury.Add(new WeaponItem(w.GetItemID()));
+            Changed?.Invoke();
+            return true;
+        }
+
+        //Loot pickups and mission rewards
+        public void AddToStash(UpgradeDefinition u)
+        {
+            if (u == null) return;
+            stash.Add(u.ItemID);
+            Changed?.Invoke();
+        }
+
         public void AddToArmoury(string weaponId)
         {
             if (string.IsNullOrEmpty(weaponId)) return;
-            armoury.Add(weaponId);
+            armoury.Add(new WeaponItem(weaponId));
             Changed?.Invoke();
+        }
+
+        public int StashCount(UpgradeDefinition u)
+        {
+            int n = 0;
+            if (u != null) foreach (var id in stash) if (id == u.ItemID) n++;
+            return n;
         }
 
         // ---------- Saving ----------
@@ -338,7 +438,9 @@ namespace Rambler.Crew
             public int credits;
             public DeathRule deathRule;
             public List<CharacterRecord> crew, candidates, former, fallen;
-            public List<string> armoury;
+            public List<string> armoury;        //Saves from before attachments: plain weapon IDs
+            public List<WeaponItem> armouryItems;
+            public List<string> stash;
         }
 
         object ISaveable.CaptureState()
@@ -351,7 +453,8 @@ namespace Rambler.Crew
                 candidates = new List<CharacterRecord>(candidates),
                 former = new List<CharacterRecord>(former),
                 fallen = new List<CharacterRecord>(fallen),
-                armoury = new List<string>(armoury),
+                armouryItems = new List<WeaponItem>(armoury),
+                stash = new List<string>(stash),
             };
         }
 
@@ -362,7 +465,10 @@ namespace Rambler.Crew
             deathRule = s.deathRule;
             Fill(crew, s.crew); Fill(candidates, s.candidates); Fill(former, s.former); Fill(fallen, s.fallen);
             armoury.Clear();
-            if (s.armoury != null) armoury.AddRange(s.armoury);
+            if (s.armouryItems != null) armoury.AddRange(s.armouryItems);
+            else if (s.armoury != null) foreach (var id in s.armoury) armoury.Add(new WeaponItem(id));
+            stash.Clear();
+            if (s.stash != null) stash.AddRange(s.stash);
             //Saved mid-mission: whoever was deployed is back in the crew
             foreach (var r in crew) if (r.status == CrewStatus.OnMission) r.status = CrewStatus.Hired;
             Changed?.Invoke();

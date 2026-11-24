@@ -152,9 +152,90 @@ namespace Rambler.EditorTools
                 Template(templates.GetArrayElementAtIndex(1), "Specialist", contractor, 1, new[] { hacking, medic, engineering, piloting, firearms }, "Pistol Hayes", "SMG Hayes");
             });
 
+            CreateUpgrades(firearms);
+
             AssetDatabase.SaveAssets();
             Debug.Log("[Company] Starter content is in " + Root + ". Enter play mode and select DontDestroyOnLoad > Company to hire.");
             EditorGUIUtility.PingObject(AssetDatabase.LoadAssetAtPath<Object>(Root));
+        }
+
+        // ---------- Upgrades and the shop ----------
+
+        //Attachments, gear and a shop catalogue; also gives the Firearms skill its aim bonus (-4% spread,
+        //-3% recoil a level) if it has none yet. Existing upgrade assets are left alone.
+        static void CreateUpgrades(SkillDefinition firearms)
+        {
+            Folder(Root + "/Upgrades");
+            if (firearms != null)
+            {
+                var fso = new SerializedObject(firearms);
+                var per = fso.FindProperty("combatPerLevel");
+                if (per.FindPropertyRelative("spread").floatValue == 0f && per.FindPropertyRelative("kick").floatValue == 0f)
+                {
+                    per.FindPropertyRelative("spread").floatValue = -4f;
+                    per.FindPropertyRelative("kick").floatValue = -3f;
+                    fso.FindProperty("description").stringValue = "Accuracy and handling with guns: -4% spread and -3% recoil a level.";
+                    fso.ApplyModifiedPropertiesWithoutUndo();
+                    EditorUtility.SetDirty(firearms);
+                }
+            }
+
+            const WeaponFamily guns = WeaponFamily.Pistol | WeaponFamily.SMG | WeaponFamily.Rifle;
+            var ups = new List<UpgradeDefinition>
+            {
+                Upgrade("Red-dot Sight", "A quick reflex sight.", UpgradeSlot.Scope, guns, 250, spread: -20),
+                Upgrade("4x Scope", "Magnified optic for picking shots at range.", UpgradeSlot.Scope, WeaponFamily.Rifle, 400, spread: -35, fireRate: -10),
+                Upgrade("Long Barrel", "Higher muzzle velocity, harder hits.", UpgradeSlot.Barrel, WeaponFamily.All & ~WeaponFamily.Launcher, 350, damage: 12, spread: -10),
+                Upgrade("Compensator", "Vents gas to keep the muzzle down.", UpgradeSlot.Barrel, guns, 300, kick: -35),
+                Upgrade("Extended Mag", "More rounds before a reload.", UpgradeSlot.Magazine, WeaponFamily.All & ~WeaponFamily.Launcher, 300, magazine: 50),
+                Upgrade("Drum Mag", "A lot more rounds, a little more weight.", UpgradeSlot.Magazine, WeaponFamily.SMG | WeaponFamily.Rifle | WeaponFamily.Shotgun, 450, magazine: 100, fireRate: -5),
+                Upgrade("Laser Sight", "A dot where the shot will land.", UpgradeSlot.Underbarrel, WeaponFamily.All & ~WeaponFamily.Launcher, 250, spread: -15),
+                Upgrade("Foregrip", "A second hand on the gun.", UpgradeSlot.Underbarrel, WeaponFamily.SMG | WeaponFamily.Rifle | WeaponFamily.Shotgun, 250, kick: -25, spread: -5),
+                Upgrade("Kevlar Vest", "Soft armour. Light, takes the edge off.", UpgradeSlot.Armour, WeaponFamily.None, 400, damageTaken: -20, speed: -3),
+                Upgrade("Plate Carrier", "Hard plates front and back. Heavy.", UpgradeSlot.Armour, WeaponFamily.None, 750, damageTaken: -35, speed: -10),
+                Upgrade("Reflex Implant", "Faster hands, steadier aim.", UpgradeSlot.Implant, WeaponFamily.None, 900, fireRate: 15, spread: -10),
+                Upgrade("Stim Implant", "Keeps the body going when it should quit.", UpgradeSlot.Implant, WeaponFamily.None, 800, health: 25),
+                Upgrade("Sprint Implant", "Boosted leg muscle.", UpgradeSlot.Implant, WeaponFamily.None, 700, speed: 15),
+            };
+
+            Asset<ShopCatalogue>(Root + "/Shop Catalogue.asset", so =>
+            {
+                var arr = so.FindProperty("upgrades");
+                arr.arraySize = ups.Count;
+                for (int i = 0; i < ups.Count; i++) arr.GetArrayElementAtIndex(i).objectReferenceValue = ups[i];
+                var forSale = new (string name, int price)[] { ("Pistol Hayes", 250), ("SMG Hayes", 550), ("Shotgun Hayes", 600), ("Rifle Hayes", 750) };
+                var w = so.FindProperty("weapons");
+                w.arraySize = 0;
+                foreach (var f in forSale)
+                {
+                    var weapon = AssetDatabase.LoadAssetAtPath<Weapon>(WeaponRoot + f.name + ".asset");
+                    if (weapon == null) continue;
+                    w.arraySize++;
+                    var e = w.GetArrayElementAtIndex(w.arraySize - 1);
+                    e.FindPropertyRelative("weapon").objectReferenceValue = weapon;
+                    e.FindPropertyRelative("price").intValue = f.price;
+                }
+            });
+        }
+
+        static UpgradeDefinition Upgrade(string name, string description, UpgradeSlot slot, WeaponFamily fits, int price,
+            float damage = 0, float spread = 0, float kick = 0, float fireRate = 0, float magazine = 0, float damageTaken = 0, float health = 0, float speed = 0)
+        {
+            return Asset<UpgradeDefinition>(Root + "/Upgrades/" + name + ".asset", so =>
+            {
+                Common(so, name, description, null, price);
+                so.FindProperty("slot").enumValueIndex = (int)slot;
+                so.FindProperty("fits").intValue = (int)fits;
+                var m = so.FindProperty("modifiers");
+                m.FindPropertyRelative("damage").floatValue = damage;
+                m.FindPropertyRelative("spread").floatValue = spread;
+                m.FindPropertyRelative("kick").floatValue = kick;
+                m.FindPropertyRelative("fireRate").floatValue = fireRate;
+                m.FindPropertyRelative("magazine").floatValue = magazine;
+                m.FindPropertyRelative("damageTaken").floatValue = damageTaken;
+                m.FindPropertyRelative("health").floatValue = health;
+                m.FindPropertyRelative("speed").floatValue = speed;
+            });
         }
 
         static SkillDefinition Skill(string name, string description, params (Stat stat, float add, float pct)[] bonuses)

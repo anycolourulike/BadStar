@@ -23,6 +23,9 @@ namespace Rambler.Crew.UI
         public TextMeshProUGUI actionLabel;
         public Button action2;
         public TextMeshProUGUI action2Label;
+        [Tooltip("Attachment or gear slots, in UpgradeDefinition.WeaponSlots / GearSlots order.")]
+        public Button[] slots = new Button[0];
+        public TextMeshProUGUI[] slotLabels = new TextMeshProUGUI[0];
 
         public void SetPortrait(Sprite sprite, string name)
         {

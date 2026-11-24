@@ -24,14 +24,15 @@ namespace Rambler.EditorTools
         internal static Sprite uiSprite, circle;
         internal static TMP_FontAsset font;
 
-        [MenuItem("Tools/Company/Build Crew Screen")]
+        //The Home Terminal (CrewScreen class, HUD/CrewScreen object: names kept so existing references hold)
+        [MenuItem("Tools/Company/Build Home Terminal")]
         internal static void BuildAll()
         {
             Load();
             BuildScreen();
             BuildTerminalPrefab();
             AssetDatabase.SaveAssets();
-            Debug.Log("[Company] Crew screen built into " + PlayerCorePath + " (HUD/CrewScreen); terminal prefab at " + TerminalPath + ".");
+            Debug.Log("[Company] Home Terminal built into " + PlayerCorePath + " (HUD/CrewScreen); terminal prefab at " + TerminalPath + ".");
         }
 
         internal static void Load()
@@ -67,13 +68,15 @@ namespace Rambler.EditorTools
                 Center(window, new Vector2(1800, 1000));
                 Set(so, "window", window.gameObject);
 
-                var title = Txt("Title", window, "CREW", 56, TextAlignmentOptions.MidlineLeft);
-                TopLeft(title, new Vector2(40, -20), new Vector2(240, 88));
+                var title = Txt("Title", window, "HOME TERMINAL", 50, TextAlignmentOptions.MidlineLeft);
+                TopLeft(title, new Vector2(36, -20), new Vector2(452, 88));
                 title.fontStyle = FontStyles.Bold;
-                Set(so, "recruitTab", Btn("RecruitTab", window, TileCol, "Recruit", 38, new Vector2(290, -24), new Vector2(240, 80), out _));
-                Set(so, "crewTab", Btn("CrewTab", window, TileCol, "Crew", 38, new Vector2(546, -24), new Vector2(240, 80), out _));
+                title.enableWordWrapping = false; title.enableAutoSizing = true; title.fontSizeMax = 50; title.fontSizeMin = 34;
+                Set(so, "recruitTab", Btn("RecruitTab", window, TileCol, "Recruit", 38, new Vector2(500, -24), new Vector2(228, 80), out _));
+                Set(so, "crewTab", Btn("CrewTab", window, TileCol, "Crew", 38, new Vector2(740, -24), new Vector2(228, 80), out _));
+                Set(so, "shopTab", Btn("ShopTab", window, TileCol, "Shop", 38, new Vector2(980, -24), new Vector2(228, 80), out _));
                 var credits = Txt("Credits", window, "Credits", 42, TextAlignmentOptions.MidlineRight);
-                TopRight(credits, new Vector2(-150, -20), new Vector2(600, 88));
+                TopRight(credits, new Vector2(-150, -20), new Vector2(380, 88));
                 Set(so, "creditsText", credits);
                 var close = Img("Close", window, Color.white, circle);
                 TopRight(close, new Vector2(-26, -14), new Vector2(100, 100));
@@ -90,6 +93,7 @@ namespace Rambler.EditorTools
 
                 BuildRecruitPage(window, so);
                 BuildCrewPage(window, so);
+                BuildShopPage(window, so);
 
                 so.ApplyModifiedPropertiesWithoutUndo();
                 window.gameObject.SetActive(false);
@@ -209,27 +213,149 @@ namespace Rambler.EditorTools
             Set(so, "skillTemplate", item);
         }
 
+        //Left: CARRYING (guns, each with four attachment slots) and GEAR (armour, implant), scrolling together.
+        //Right: STASH (unfitted upgrades, Fit) over ARMOURY (stored guns, Take).
         internal static void BuildLoadoutPage(RectTransform page, SerializedObject so)
         {
-            var carriedCol = Rect("Carried", page);
-            carriedCol.anchorMin = new Vector2(0, 0); carriedCol.anchorMax = new Vector2(0.5f, 1); carriedCol.offsetMin = Vector2.zero; carriedCol.offsetMax = new Vector2(-12, 0);
+            var leftCol = Rect("Carried", page);
+            leftCol.anchorMin = new Vector2(0, 0); leftCol.anchorMax = new Vector2(0.5f, 1); leftCol.offsetMin = Vector2.zero; leftCol.offsetMax = new Vector2(-12, 0);
+            var stashCol = Rect("Stash", page);
+            stashCol.anchorMin = new Vector2(0.5f, 0.45f); stashCol.anchorMax = new Vector2(1, 1); stashCol.offsetMin = new Vector2(12, 6); stashCol.offsetMax = Vector2.zero;
             var armouryCol = Rect("Armoury", page);
-            armouryCol.anchorMin = new Vector2(0.5f, 0); armouryCol.anchorMax = new Vector2(1, 1); armouryCol.offsetMin = new Vector2(12, 0); armouryCol.offsetMax = Vector2.zero;
+            armouryCol.anchorMin = new Vector2(0.5f, 0); armouryCol.anchorMax = new Vector2(1, 0.45f); armouryCol.offsetMin = new Vector2(12, 0); armouryCol.offsetMax = new Vector2(0, -6);
 
-            foreach (var (col, heading) in new[] { (carriedCol, "CARRYING"), (armouryCol, "ARMOURY") })
+            foreach (var (col, heading) in new[] { (leftCol, "CARRYING"), (stashCol, "STASH"), (armouryCol, "ARMOURY") })
             {
-                var h = Txt("Heading", col, heading, 30, TextAlignmentOptions.MidlineLeft);
-                TopLeft(h.rectTransform, new Vector2(4, 0), new Vector2(500, 44)); h.color = Dim;
+                var h = Txt("Heading", col, heading, 28, TextAlignmentOptions.MidlineLeft);
+                TopLeft(h.rectTransform, new Vector2(4, 0), new Vector2(500, 40)); h.color = Dim;
             }
 
-            var carriedContent = Scroll(Inset(carriedCol), false, 8, new RectOffset(0, 10, 0, 0));
-            Set(so, "carriedTemplate", WeaponRow("CarriedTemplate", carriedContent, true));
+            //Guns then gear, in one scrolling column (two groups so new gun rows stay above the gear row)
+            var leftContent = Scroll(Inset(leftCol), false, 10, new RectOffset(0, 10, 0, 0));
+            var guns = Group("Guns", leftContent);
+            var gearBox = Group("GearBox", leftContent);
+            Set(so, "carriedTemplate", GunRow(guns));
+            Set(so, "gearTemplate", GearRow(gearBox));
+
+            var stashContent = Scroll(Inset(stashCol), false, 8, new RectOffset(0, 10, 0, 0));
+            Set(so, "stashTemplate", StockRow("StashTemplate", stashContent, "Fit"));
+            var stashEmpty = Txt("Empty", stashCol, "Nothing unfitted. Buy upgrades in the Shop.", 26, TextAlignmentOptions.Center);
+            Stretch(stashEmpty.rectTransform); stashEmpty.color = Dim;
+            Set(so, "stashEmptyText", stashEmpty);
 
             var armouryContent = Scroll(Inset(armouryCol), false, 8, new RectOffset(0, 10, 0, 0));
-            Set(so, "armouryTemplate", WeaponRow("ArmouryTemplate", armouryContent, false));
-            var empty = Txt("Empty", armouryCol, "Empty. Stored weapons go here.", 30, TextAlignmentOptions.Center);
+            Set(so, "armouryTemplate", StockRow("ArmouryTemplate", armouryContent, "Take"));
+            var empty = Txt("Empty", armouryCol, "Empty. Stored guns go here.", 26, TextAlignmentOptions.Center);
             Stretch(empty.rectTransform); empty.color = Dim;
             Set(so, "armouryEmptyText", empty);
+        }
+
+        static RectTransform Group(string name, RectTransform parent)
+        {
+            var g = Rect(name, parent);
+            var v = g.gameObject.AddComponent<VerticalLayoutGroup>();
+            v.spacing = 10; v.childControlWidth = v.childControlHeight = true; v.childForceExpandWidth = true; v.childForceExpandHeight = false;
+            return g;
+        }
+
+        //A carried gun: icon, name, EQUIPPED tag, Equip / Store, four attachment slot chips, what they add up to
+        static CrewUIItem GunRow(RectTransform parent)
+        {
+            var row = Img("CarriedTemplate", parent, TileCol).rectTransform;
+            Size(row, new Vector2(560, 200));
+            var item = row.gameObject.AddComponent<CrewUIItem>();
+            Portrait(row, item, Vector2.zero, 72, false);
+            var p = (RectTransform)item.portrait.transform; p.anchorMin = p.anchorMax = p.pivot = new Vector2(0, 1); p.anchoredPosition = new Vector2(10, -10);
+            item.portrait.preserveAspect = true;
+            item.title = Txt("Weapon", row, "Weapon", 32, TextAlignmentOptions.MidlineLeft);
+            TopLeft(item.title.rectTransform, new Vector2(94, -8), new Vector2(210, 44));
+            item.title.enableAutoSizing = true; item.title.fontSizeMax = 32; item.title.fontSizeMin = 22;
+            item.side = Txt("Tag", row, "", 22, TextAlignmentOptions.MidlineLeft);
+            TopLeft(item.side.rectTransform, new Vector2(94, -50), new Vector2(160, 30)); item.side.color = Orange;
+            item.action = Btn("Equip", row, Orange, "Equip", 28, Vector2.zero, new Vector2(112, 62), out item.actionLabel);
+            TopRight((RectTransform)item.action.transform, new Vector2(-130, -10), new Vector2(112, 62));
+            item.action2 = Btn("Store", row, Blue, "Store", 28, Vector2.zero, new Vector2(112, 62), out item.action2Label);
+            TopRight((RectTransform)item.action2.transform, new Vector2(-10, -10), new Vector2(112, 62));
+            Slots(row, item, 4, 130, 136, -88);
+            item.body = Txt("Mods", row, "", 24, TextAlignmentOptions.MidlineLeft);
+            TopLeft(item.body.rectTransform, new Vector2(12, -152), new Vector2(536, 40)); item.body.color = Orange;
+            item.body.enableAutoSizing = true; item.body.fontSizeMax = 24; item.body.fontSizeMin = 18;
+            return item;
+        }
+
+        //Gear: armour and implant slot chips, and what they add up to
+        static CrewUIItem GearRow(RectTransform parent)
+        {
+            var row = Img("GearTemplate", parent, TileCol).rectTransform;
+            Size(row, new Vector2(560, 176));
+            var item = row.gameObject.AddComponent<CrewUIItem>();
+            var heading = Txt("Heading", row, "GEAR", 28, TextAlignmentOptions.MidlineLeft);
+            TopLeft(heading.rectTransform, new Vector2(12, -6), new Vector2(300, 40)); heading.color = Dim;
+            Slots(row, item, 2, 266, 272, -52);
+            item.body = Txt("Mods", row, "", 24, TextAlignmentOptions.MidlineLeft);
+            TopLeft(item.body.rectTransform, new Vector2(12, -126), new Vector2(536, 40)); item.body.color = Orange;
+            item.body.enableAutoSizing = true; item.body.fontSizeMax = 24; item.body.fontSizeMin = 18;
+            return item;
+        }
+
+        static void Slots(RectTransform row, CrewUIItem item, int count, float width, float step, float y)
+        {
+            item.slots = new Button[count];
+            item.slotLabels = new TextMeshProUGUI[count];
+            for (int i = 0; i < count; i++)
+            {
+                item.slots[i] = Btn("Slot" + i, row, Hex("1F2B3AFF"), "Slot", 24, new Vector2(12 + i * step, y), new Vector2(width, 58), out item.slotLabels[i]);
+                item.slotLabels[i].fontSizeMin = 16;
+            }
+        }
+
+        //A stash or armoury entry: icon, name, count or tag, a note, one button
+        static CrewUIItem StockRow(string name, RectTransform content, string button)
+        {
+            var row = Img(name, content, TileCol).rectTransform;
+            Size(row, new Vector2(560, 100));
+            var item = row.gameObject.AddComponent<CrewUIItem>();
+            Portrait(row, item, Vector2.zero, 64, false);
+            var p = (RectTransform)item.portrait.transform; p.anchorMin = p.anchorMax = p.pivot = new Vector2(0, 0.5f); p.anchoredPosition = new Vector2(10, 0);
+            item.portrait.preserveAspect = true;
+            item.title = Txt("Name", row, "Name", 28, TextAlignmentOptions.MidlineLeft);
+            LeftMid(item.title.rectTransform, new Vector2(86, 18), new Vector2(280, 40));
+            item.title.enableAutoSizing = true; item.title.fontSizeMax = 28; item.title.fontSizeMin = 20;
+            item.side = Txt("Count", row, "", 24, TextAlignmentOptions.MidlineLeft);
+            LeftMid(item.side.rectTransform, new Vector2(370, 18), new Vector2(70, 40)); item.side.color = Orange;
+            item.body = Txt("Note", row, "", 20, TextAlignmentOptions.MidlineLeft);
+            LeftMid(item.body.rectTransform, new Vector2(86, -22), new Vector2(350, 44)); item.body.color = Dim;
+            item.body.enableAutoSizing = true; item.body.fontSizeMax = 20; item.body.fontSizeMin = 15;
+            item.action = Btn("Action", row, Orange, button, 28, Vector2.zero, new Vector2(104, 66), out item.actionLabel);
+            var a = (RectTransform)item.action.transform; a.anchorMin = a.anchorMax = a.pivot = new Vector2(1, 0.5f); a.anchoredPosition = new Vector2(-10, 0);
+            return item;
+        }
+
+        //Everything for sale: one row each with price and Buy
+        internal static void BuildShopPage(RectTransform window, SerializedObject so)
+        {
+            var page = Rect("ShopPage", window);
+            Body(page);
+            Set(so, "shopPage", page.gameObject);
+            var bg = Img("Background", page, PanelCol); Stretch(bg.rectTransform); bg.transform.SetAsFirstSibling();
+            var list = Rect("List", page);
+            list.anchorMin = Vector2.zero; list.anchorMax = Vector2.one; list.offsetMin = new Vector2(14, 14); list.offsetMax = new Vector2(-14, -14);
+            var content = Scroll(list, false, 8, new RectOffset(0, 12, 0, 0));
+            var row = Img("ShopTemplate", content, TileCol).rectTransform;
+            Size(row, new Vector2(1700, 112));
+            var item = row.gameObject.AddComponent<CrewUIItem>();
+            Portrait(row, item, Vector2.zero, 82, false);
+            var p = (RectTransform)item.portrait.transform; p.anchorMin = p.anchorMax = p.pivot = new Vector2(0, 0.5f); p.anchoredPosition = new Vector2(14, 0);
+            item.portrait.preserveAspect = true;
+            item.title = Txt("Name", row, "Item", 34, TextAlignmentOptions.MidlineLeft);
+            LeftMid(item.title.rectTransform, new Vector2(116, 20), new Vector2(900, 46));
+            item.body = Txt("Details", row, "", 26, TextAlignmentOptions.MidlineLeft);
+            LeftMid(item.body.rectTransform, new Vector2(116, -24), new Vector2(1180, 38)); item.body.color = Dim;
+            item.side = Txt("Price", row, "0", 34, TextAlignmentOptions.MidlineRight);
+            var s = item.side.rectTransform; s.anchorMin = s.anchorMax = s.pivot = new Vector2(1, 0.5f); s.anchoredPosition = new Vector2(-214, 0); s.sizeDelta = new Vector2(170, 60);
+            item.action = Btn("Buy", row, Orange, "Buy", 32, Vector2.zero, new Vector2(180, 80), out item.actionLabel);
+            var a = (RectTransform)item.action.transform; a.anchorMin = a.anchorMax = a.pivot = new Vector2(1, 0.5f); a.anchoredPosition = new Vector2(-16, 0);
+            Set(so, "shopTemplate", item);
         }
 
         internal static RectTransform Inset(RectTransform col)
@@ -237,33 +363,6 @@ namespace Rambler.EditorTools
             var r = Rect("List", col);
             r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = Vector2.zero; r.offsetMax = new Vector2(0, -52);
             return r;
-        }
-
-        internal static CrewUIItem WeaponRow(string name, RectTransform content, bool twoButtons)
-        {
-            var row = Img(name, content, TileCol).rectTransform;
-            Size(row, new Vector2(560, 104));
-            var item = row.gameObject.AddComponent<CrewUIItem>();
-            Portrait(row, item, Vector2.zero, 80, false);
-            var p = (RectTransform)item.portrait.transform; p.anchorMin = p.anchorMax = p.pivot = new Vector2(0, 0.5f); p.anchoredPosition = new Vector2(10, 0);
-            item.portrait.preserveAspect = true;
-            float textWidth = twoButtons ? 196 : 300;
-            item.title = Txt("Weapon", row, "Weapon", 32, TextAlignmentOptions.MidlineLeft);
-            LeftMid(item.title.rectTransform, new Vector2(102, 16), new Vector2(textWidth, 46));
-            item.title.enableAutoSizing = true; item.title.fontSizeMax = 32; item.title.fontSizeMin = 22;
-            item.side = Txt("Tag", row, "", 24, TextAlignmentOptions.MidlineLeft);
-            LeftMid(item.side.rectTransform, new Vector2(102, -26), new Vector2(140, 32)); item.side.color = Orange;
-            item.body = Txt("Note", row, "", 22, TextAlignmentOptions.MidlineLeft);
-            LeftMid(item.body.rectTransform, new Vector2(176, -26), new Vector2(textWidth - 74, 32)); item.body.color = Dim;
-            item.action = Btn("Action", row, Orange, twoButtons ? "Equip" : "Take", 30, Vector2.zero, new Vector2(124, 78), out item.actionLabel);
-            var a = (RectTransform)item.action.transform; a.anchorMin = a.anchorMax = a.pivot = new Vector2(1, 0.5f);
-            a.anchoredPosition = new Vector2(twoButtons ? -146 : -12, 0);
-            if (twoButtons)
-            {
-                item.action2 = Btn("Action2", row, Blue, "Store", 30, Vector2.zero, new Vector2(124, 78), out item.action2Label);
-                var b = (RectTransform)item.action2.transform; b.anchorMin = b.anchorMax = b.pivot = new Vector2(1, 0.5f); b.anchoredPosition = new Vector2(-12, 0);
-            }
-            return item;
         }
 
         internal static void BuildTrainingPage(RectTransform page, SerializedObject so)
@@ -319,7 +418,7 @@ namespace Rambler.EditorTools
                 canvasGo.transform.localPosition = new Vector3(0, 2.5f, 0); canvasGo.transform.localScale = Vector3.one * 0.01f;
                 var canvas = canvasGo.GetComponent<Canvas>(); canvas.renderMode = RenderMode.WorldSpace;
                 ((RectTransform)canvasGo.transform).sizeDelta = new Vector2(260, 104);
-                var button = Btn("Open", (RectTransform)canvasGo.transform, Orange, "CREW", 54, Vector2.zero, new Vector2(260, 104), out var label);
+                var button = Btn("Open", (RectTransform)canvasGo.transform, Orange, "HOME", 54, Vector2.zero, new Vector2(260, 104), out var label);
                 Stretch((RectTransform)button.transform);
                 label.fontStyle = FontStyles.Bold;
 

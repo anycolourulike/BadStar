@@ -69,9 +69,12 @@ namespace Rambler.Combat
       transform.LookAt(target);
     }
 
-    public float GetDamage() 
+    //Set at launch from the shooter's upgrades (CombatModifiers); 1 = the prefab's damage
+    public float DamageMultiplier { get; set; } = 1f;
+
+    public float GetDamage()
     {
-      return damage;
+      return damage * DamageMultiplier;
     }
 
     public Vector3 GetAimLocation()

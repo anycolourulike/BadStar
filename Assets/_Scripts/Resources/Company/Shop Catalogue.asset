@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 99b64818a6de4264da0461bebf8e6d32, type: 3}
+  m_Name: Shop Catalogue
+  m_EditorClassIdentifier: 
+  upgrades:
+  - {fileID: 11400000, guid: fa864758373f9404796fe6ea5d5a2f63, type: 2}
+  - {fileID: 11400000, guid: 3cbb09058e70b0041a3537a2f3f5748f, type: 2}
+  - {fileID: 11400000, guid: f247761363dccca46998b560355211dc, type: 2}
+  - {fileID: 11400000, guid: 3fcf868fd9fbc48449f481924441d74a, type: 2}
+  - {fileID: 11400000, guid: 3848162d07f3f3c4cada87b04018ec30, type: 2}
+  - {fileID: 11400000, guid: 41ebe7134ba2b6145bdd754632b8a4bd, type: 2}
+  - {fileID: 11400000, guid: 304612eb96168544ba70ae47b064165a, type: 2}
+  - {fileID: 11400000, guid: 5df7ded93313f484abe55b822f73cb08, type: 2}
+  - {fileID: 11400000, guid: b875f86f56c803740afec7969e528c47, type: 2}
+  - {fileID: 11400000, guid: f7d1392e1fec99748a7c981dce25ef56, type: 2}
+  - {fileID: 11400000, guid: 567b6bb996b229a4ea67147966b8c84b, type: 2}
+  - {fileID: 11400000, guid: c0d2e540d12fd5142bd640651a95fd18, type: 2}
+  - {fileID: 11400000, guid: 43ca3f376ef46af408135b04e1997b98, type: 2}
+  weapons:
+  - weapon: {fileID: 11400000, guid: 2c5c155b418e8c540bca75c901bf3e3a, type: 2}
+    price: 250
+  - weapon: {fileID: 11400000, guid: 2c474ed463d99a0499521d62a7de84e7, type: 2}
+    price: 550
+  - weapon: {fileID: 11400000, guid: 55d3c3ac4b5537c43820d04feedb85e1, type: 2}
+    price: 600
+  - weapon: {fileID: 11400000, guid: 7246f3b9edff4f04ca98c9cee1f95b5a, type: 2}
+    price: 750

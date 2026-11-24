@@ -80,8 +80,8 @@ namespace Rambler.Crew
             if (t.weapons.Length > 0)
             {
                 var w = t.weapons[UnityEngine.Random.Range(0, t.weapons.Length)];
-                r.weaponIds.Clear();
-                if (w != null) r.weaponIds.Add(w.GetItemID());
+                r.Weapons.Clear();
+                if (w != null) r.Weapons.Add(new WeaponItem(w.GetItemID()));
             }
 
             float mult = UnityEngine.Random.Range(t.feeMultiplier.x, t.feeMultiplier.y);

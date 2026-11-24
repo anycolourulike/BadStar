@@ -22,9 +22,12 @@ namespace Rambler.Crew
 
         [Min(1)] [SerializeField] int maxLevel = 10;
         [SerializeField] StatBonus[] bonuses = new StatBonus[0];
+        [Tooltip("Combat changes per skill level (e.g. Firearms: spread -4% a level).")]
+        [SerializeField] Rambler.Combat.ModifierSet combatPerLevel;
 
         public int MaxLevel => maxLevel;
         public StatBonus[] Bonuses => bonuses;
+        public Rambler.Combat.ModifierSet CombatPerLevel => combatPerLevel;
     }
 
     [Serializable]

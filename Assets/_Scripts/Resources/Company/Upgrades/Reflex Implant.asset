@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d05c5bfba72797643aac470a3ca6bb78, type: 3}
+  m_Name: Reflex Implant
+  m_EditorClassIdentifier: 
+  itemID: d57085b5-cf5f-48fd-9946-0f3568527f8e
+  displayName: Reflex Implant
+  description: Faster hands, steadier aim.
+  icon: {fileID: 0}
+  price: 900
+  slot: 5
+  fits: 0
+  modifiers:
+    damage: 0
+    spread: -10
+    kick: 0
+    fireRate: 15
+    magazine: 0
+    damageTaken: 0
+    health: 0
+    speed: 0

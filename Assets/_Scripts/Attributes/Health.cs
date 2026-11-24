@@ -107,6 +107,7 @@ namespace Rambler.Attributes // Add Player & Companion Death SFX
             if (isDead == true) return;
             var cover = GetComponent<CoverUser>();
             if (cover != null && !ignoreCover) damage *= cover.DamageMultiplier; //Shots that still land on someone in cover do less
+            damage *= Rambler.Combat.CombatModifiers.DamageTakenOf(gameObject); //Armour (1 for anyone without gear)
             Damaged?.Invoke(damage);
             if (this.gameObject.CompareTag("Enemy") || (this.gameObject.CompareTag("Companion")))
             {

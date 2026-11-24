@@ -8,14 +8,15 @@ using Rambler.Ownables;
 
 namespace Rambler.Crew.UI
 {
-    //The Crew window, opened at a CrewTerminal. Two tabs:
+    //The Home Terminal window (this class keeps its old name), opened at a CrewTerminal. Three tabs:
     //  Recruit  cards for everyone for hire, with a Hire button each
-    //  Crew     the crew list; the selected person's Skills, Loadout (with the Company armoury) and Training,
-    //           plus Deploy (when the scene has a SquadDeployer) and Fire
-    //The game pauses while it is open. Built by Tools > Company > Build Crew Screen.
+    //  Crew     the crew list; the selected person's Skills, Loadout (guns with attachment slots, gear slots,
+    //           the stash of unfitted upgrades and the armoury) and Training, plus Deploy and Fire
+    //  Shop     attachments, gear and guns for credits (bought items go to the stash or the armoury)
+    //The game pauses while it is open. Built by Tools > Company > Build Home Terminal.
     public class CrewScreen : MonoBehaviour
     {
-        enum Tab { Recruit, Crew }
+        enum Tab { Recruit, Crew, Shop }
         enum Detail { Skills, Loadout, Training }
 
         public static CrewScreen Instance { get; private set; }
@@ -24,6 +25,7 @@ namespace Rambler.Crew.UI
         [SerializeField] Button closeButton;
         [SerializeField] Button recruitTab;
         [SerializeField] Button crewTab;
+        [SerializeField] Button shopTab;
         [SerializeField] TextMeshProUGUI creditsText;
         [SerializeField] TextMeshProUGUI footerText;
         [SerializeField] TextMeshProUGUI messageText;
@@ -46,6 +48,9 @@ namespace Rambler.Crew.UI
         [SerializeField] GameObject trainingPage;
         [SerializeField] CrewUIItem skillTemplate;
         [SerializeField] CrewUIItem carriedTemplate;
+        [SerializeField] CrewUIItem gearTemplate;
+        [SerializeField] CrewUIItem stashTemplate;
+        [SerializeField] TextMeshProUGUI stashEmptyText;
         [SerializeField] CrewUIItem armouryTemplate;
         [SerializeField] TextMeshProUGUI armouryEmptyText;
         [SerializeField] CrewUIItem courseTemplate;
@@ -55,7 +60,13 @@ namespace Rambler.Crew.UI
         [SerializeField] Button fireButton;
         [SerializeField] TextMeshProUGUI fireLabel;
 
+        [Header("Shop")]
+        [SerializeField] GameObject shopPage;
+        [SerializeField] CrewUIItem shopTemplate;
+
         [Header("Look")]
+        [SerializeField] Color slotFilled = new Color(0.95f, 0.62f, 0.2f);
+        [SerializeField] Color slotEmpty = new Color(0.12f, 0.17f, 0.23f);
         [SerializeField] Color tabOn = new Color(0.95f, 0.62f, 0.2f);
         [SerializeField] Color tabOff = new Color(0.16f, 0.24f, 0.32f);
         [SerializeField] Color dimText = new Color(1f, 1f, 1f, 0.55f);
@@ -74,11 +85,12 @@ namespace Rambler.Crew.UI
         {
             Instance = this;
             if (window != null) window.SetActive(false);
-            foreach (var t in new[] { candidateTemplate, crewRowTemplate, skillTemplate, carriedTemplate, armouryTemplate, courseTemplate })
+            foreach (var t in new[] { candidateTemplate, crewRowTemplate, skillTemplate, carriedTemplate, gearTemplate, stashTemplate, armouryTemplate, courseTemplate, shopTemplate })
                 if (t != null) t.gameObject.SetActive(false);
             Wire(closeButton, Close);
             Wire(recruitTab, () => ShowTab(Tab.Recruit));
             Wire(crewTab, () => ShowTab(Tab.Crew));
+            Wire(shopTab, () => ShowTab(Tab.Shop));
             Wire(skillsTab, () => ShowDetail(Detail.Skills));
             Wire(loadoutTab, () => ShowDetail(Detail.Loadout));
             Wire(trainingTab, () => ShowDetail(Detail.Training));
@@ -166,11 +178,14 @@ namespace Rambler.Crew.UI
             CrewUIItem.SetText(footerText, "Crew " + company.Crew.Count + "/" + company.MaxCrew);
             Tint(recruitTab, tab == Tab.Recruit);
             Tint(crewTab, tab == Tab.Crew);
+            Tint(shopTab, tab == Tab.Shop);
             if (recruitPage != null) recruitPage.SetActive(tab == Tab.Recruit);
             if (crewPage != null) crewPage.SetActive(tab == Tab.Crew);
+            if (shopPage != null) shopPage.SetActive(tab == Tab.Shop);
 
             if (tab == Tab.Recruit) DrawRecruits(company);
-            else DrawCrew(company);
+            else if (tab == Tab.Crew) DrawCrew(company);
+            else DrawShop(company);
         }
 
         void Tint(Button b, bool on)
@@ -189,7 +204,7 @@ namespace Rambler.Crew.UI
                 item.SetPortrait(def != null ? def.Portrait : null, r.displayName);
                 CrewUIItem.SetText(item.title, r.displayName);
                 CrewUIItem.SetText(item.side, r.generated ? "" : "NAMED");
-                CrewUIItem.SetText(item.body, SkillLines(r, "\n") + "\n\n" + WeaponName(r.weaponIds.Count > 0 ? r.weaponIds[0] : null) + "\nWage " + r.wage + " / mission");
+                CrewUIItem.SetText(item.body, SkillLines(r, "\n") + "\n\n" + WeaponName(r.Equipped != null ? r.Equipped.weaponId : null) + "\nWage " + r.wage + " / mission");
                 bool ok = company.CanHire(r, out string reason);
                 var record = r;
                 CrewUIItem.SetButton(item.action, item.actionLabel, ok ? "Hire  " + r.hireFee : reason, true, ok, () =>
@@ -261,46 +276,152 @@ namespace Rambler.Crew.UI
             }
         }
 
+        //Left: the guns carried (with their attachment slots) and the gear slots. Right: the stash of unfitted
+        //upgrades (Fit puts one on the equipped gun, or the first gun it fits, or in its gear slot) and the armoury.
+        //Tapping a filled slot takes that upgrade off, back to the stash.
         void DrawLoadout(Company company, CharacterRecord r)
         {
             bool canEdit = company.CanEditLoadout(r, out string why);
-            var carried = Fill(carriedTemplate, r.weaponIds.Count);
+            var guns = r.Weapons;
+            var carried = Fill(carriedTemplate, guns.Count);
             for (int i = 0; i < carried.Count; i++)
             {
-                string id = r.weaponIds[i];
+                var gun = guns[i];
                 var item = carried[i];
-                var w = Weapon.GetFromID(id);
-                item.SetPortrait(w != null ? w.GetIcon() : null, WeaponName(id));
-                CrewUIItem.SetText(item.title, WeaponName(id));
+                var w = gun.Weapon;
+                item.SetPortrait(w != null ? w.GetIcon() : null, WeaponName(gun.weaponId));
+                CrewUIItem.SetText(item.title, WeaponName(gun.weaponId));
                 CrewUIItem.SetText(item.side, i == 0 ? "EQUIPPED" : "");
-                CrewUIItem.SetButton(item.action, item.actionLabel, "Equip", i > 0, canEdit, () => company.EquipWeapon(r, id));
-                CrewUIItem.SetButton(item.action2, item.action2Label, "Store", true, canEdit, () => company.StoreWeapon(r, id));
+                var mods = gun.Modifiers;
+                bool takesAttachments = UpgradeDefinition.FamilyOf(w) != WeaponFamily.None;
+                CrewUIItem.SetText(item.body, !takesAttachments ? "Takes no attachments" : mods.IsEmpty ? "No attachments" : mods.Describe());
+                for (int s = 0; s < item.slots.Length && s < UpgradeDefinition.WeaponSlots.Length; s++)
+                {
+                    var slot = UpgradeDefinition.WeaponSlots[s];
+                    var fitted = gun.AttachmentIn(slot);
+                    DrawSlot(item, s, slot, fitted, takesAttachments, canEdit, () => { if (company.RemoveAttachment(r, gun, slot)) Say(fitted.DisplayName + " back to the stash."); });
+                }
+                CrewUIItem.SetButton(item.action, item.actionLabel, "Equip", i > 0, canEdit, () => company.EquipWeapon(r, gun));
+                CrewUIItem.SetButton(item.action2, item.action2Label, "Store", true, canEdit, () => company.StoreWeapon(r, gun));
             }
 
-            //The armoury, one row per kind of weapon with a count
-            var kinds = new List<string>();
-            var counts = new Dictionary<string, int>();
-            foreach (var id in company.Armoury)
+            //Gear (one row, a slot each for armour and implant)
+            var gearRows = Fill(gearTemplate, 1);
+            if (gearRows.Count > 0)
             {
-                if (!counts.ContainsKey(id)) { counts[id] = 0; kinds.Add(id); }
-                counts[id]++;
+                var g = gearRows[0];
+                var gearMods = new ModifierSet();
+                for (int s = 0; s < g.slots.Length && s < UpgradeDefinition.GearSlots.Length; s++)
+                {
+                    var slot = UpgradeDefinition.GearSlots[s];
+                    var fitted = r.GearIn(slot);
+                    if (fitted != null) gearMods += fitted.Modifiers;
+                    DrawSlot(g, s, slot, fitted, true, canEdit, () => { if (company.RemoveGear(r, slot)) Say(fitted.DisplayName + " back to the stash."); });
+                }
+                CrewUIItem.SetText(g.body, gearMods.IsEmpty ? "No gear fitted" : gearMods.Describe());
             }
-            if (armouryEmptyText != null) armouryEmptyText.gameObject.SetActive(kinds.Count == 0);
-            var stock = Fill(armouryTemplate, kinds.Count);
+
+            //The stash: one row per kind of upgrade, with a count
+            var kinds = new List<UpgradeDefinition>();
+            foreach (var id in company.Stash)
+            {
+                var u = CatalogAsset.GetFromID<UpgradeDefinition>(id);
+                if (u != null && !kinds.Contains(u)) kinds.Add(u);
+            }
+            kinds.Sort((a, b) => a.Slot != b.Slot ? a.Slot.CompareTo(b.Slot) : string.Compare(a.DisplayName, b.DisplayName, System.StringComparison.Ordinal));
+            if (stashEmptyText != null) stashEmptyText.gameObject.SetActive(kinds.Count == 0);
+            var stashRows = Fill(stashTemplate, kinds.Count);
+            for (int i = 0; i < stashRows.Count; i++)
+            {
+                var u = kinds[i];
+                var item = stashRows[i];
+                item.SetPortrait(u.Icon, u.DisplayName);
+                CrewUIItem.SetText(item.title, u.DisplayName);
+                CrewUIItem.SetText(item.side, "x" + company.StashCount(u));
+                bool ok = company.CanFit(r, u, out var target, out string reason);
+                CrewUIItem.SetText(item.body, SlotName(u.Slot) + (ok && target != null ? " → " + WeaponName(target.weaponId) : "") + (!ok && canEdit ? "  ·  " + reason : "") + "   " + u.Modifiers.Describe());
+                CrewUIItem.SetButton(item.action, item.actionLabel, "Fit", true, ok, () =>
+                {
+                    if (company.Fit(r, u)) Say(u.DisplayName + " fitted" + (target != null ? " to the " + WeaponName(target.weaponId) : "") + ".");
+                });
+            }
+
+            //The armoury: every gun separately, since each can carry different attachments
+            if (armouryEmptyText != null) armouryEmptyText.gameObject.SetActive(company.Armoury.Count == 0);
+            var stock = Fill(armouryTemplate, company.Armoury.Count);
             for (int i = 0; i < stock.Count; i++)
             {
-                string id = kinds[i];
+                var gun = company.Armoury[i];
                 var item = stock[i];
-                var w = Weapon.GetFromID(id);
-                item.SetPortrait(w != null ? w.GetIcon() : null, WeaponName(id));
-                CrewUIItem.SetText(item.title, WeaponName(id));
-                CrewUIItem.SetText(item.side, "x" + counts[id]);
-                bool ok = company.CanTakeWeapon(r, id, out string reason);
-                CrewUIItem.SetButton(item.action, item.actionLabel, "Take", true, ok, () => company.TakeWeapon(r, id));
-                if (!ok && canEdit) CrewUIItem.SetText(item.body, reason);
-                else CrewUIItem.SetText(item.body, "");
+                var w = gun.Weapon;
+                item.SetPortrait(w != null ? w.GetIcon() : null, WeaponName(gun.weaponId));
+                CrewUIItem.SetText(item.title, WeaponName(gun.weaponId));
+                CrewUIItem.SetText(item.side, gun.attachmentIds.Count > 0 ? gun.attachmentIds.Count + " fitted" : "");
+                bool ok = company.CanTakeWeapon(r, gun, out string reason);
+                CrewUIItem.SetText(item.body, !ok && canEdit ? reason : "");
+                CrewUIItem.SetButton(item.action, item.actionLabel, "Take", true, ok, () => company.TakeWeapon(r, gun));
             }
             if (!canEdit) Say(why);
+        }
+
+        //One slot chip: the fitted upgrade's name (tap to take it off), or the empty slot's name
+        void DrawSlot(CrewUIItem item, int index, UpgradeSlot slot, UpgradeDefinition fitted, bool show, bool canEdit, UnityEngine.Events.UnityAction remove)
+        {
+            var b = item.slots[index];
+            var label = index < item.slotLabels.Length ? item.slotLabels[index] : null;
+            CrewUIItem.SetButton(b, label, fitted != null ? fitted.DisplayName : SlotName(slot), show, canEdit && fitted != null, fitted != null ? remove : null);
+            if (b != null && b.targetGraphic != null) b.targetGraphic.color = fitted != null ? slotFilled : slotEmpty;
+            if (label != null) label.color = fitted != null ? Color.white : dimText;
+        }
+
+        void DrawShop(Company company)
+        {
+            var shop = company.Shop;
+            var rows = new List<(string title, string body, int price, Sprite icon, System.Func<bool> buy)>();
+            if (shop != null)
+            {
+                foreach (var forSale in shop.Weapons)
+                {
+                    if (forSale.weapon == null) continue;
+                    var w = forSale.weapon; int price = forSale.price;
+                    rows.Add((WeaponName(w.GetItemID()), "Gun   ·   goes to the armoury", price, w.GetIcon(), () => company.BuyWeapon(w, price)));
+                }
+                var ups = new List<UpgradeDefinition>(shop.Upgrades);
+                ups.RemoveAll(u => u == null);
+                ups.Sort((a, b) => a.Slot != b.Slot ? a.Slot.CompareTo(b.Slot) : a.Price.CompareTo(b.Price));
+                foreach (var u in ups)
+                {
+                    var up = u;
+                    string fits = u.IsAttachment ? "   ·   fits " + FitsText(u.Fits) : "";
+                    int owned = company.StashCount(u);
+                    rows.Add((u.DisplayName, SlotName(u.Slot) + fits + "   ·   " + u.Modifiers.Describe() + (owned > 0 ? "   ·   " + owned + " in stash" : ""), u.Price, u.Icon, () => company.Buy(up)));
+                }
+            }
+            var items = Fill(shopTemplate, rows.Count);
+            for (int i = 0; i < items.Count; i++)
+            {
+                var row = rows[i];
+                var item = items[i];
+                item.SetPortrait(row.icon, row.title);
+                CrewUIItem.SetText(item.title, row.title);
+                CrewUIItem.SetText(item.body, row.body);
+                CrewUIItem.SetText(item.side, row.price.ToString("N0"));
+                bool ok = company.CanAfford(row.price);
+                var title = row.title; var buy = row.buy;
+                CrewUIItem.SetButton(item.action, item.actionLabel, "Buy", true, ok, () => { if (buy()) Say("Bought " + title + "."); });
+            }
+            if (rows.Count == 0) Say("The shop has nothing for sale. Run Tools > Company > Create Starter Content.");
+        }
+
+        static string SlotName(UpgradeSlot s) => s == UpgradeSlot.Underbarrel ? "Under-barrel" : s.ToString();
+
+        static string FitsText(WeaponFamily f)
+        {
+            if (f == WeaponFamily.All) return "all guns";
+            var parts = new List<string>();
+            foreach (WeaponFamily v in System.Enum.GetValues(typeof(WeaponFamily)))
+                if (v != WeaponFamily.None && v != WeaponFamily.All && (f & v) != 0) parts.Add(v == WeaponFamily.SMG ? "SMGs" : v + "s");
+            return string.Join(", ", parts).ToLowerInvariant().Replace("smgs", "SMGs");
         }
 
         void DrawTraining(Company company, CharacterRecord r)
