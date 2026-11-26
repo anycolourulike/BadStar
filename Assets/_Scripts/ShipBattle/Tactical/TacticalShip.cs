@@ -33,13 +33,14 @@ namespace Rambler.Crew.Battle
             Heading = Flat(transform.forward);
         }
 
-        //Turn toward a direction and change speed toward a target speed, then move
-        public void Drive(Vector3 direction, float targetSpeed, float dt)
+        //Turn toward a direction and change speed toward a target speed, then move. A boost (an evasive burn) turns
+        //and accelerates harder and can push a little past top speed.
+        public void Drive(Vector3 direction, float targetSpeed, float dt, float boost = 1f)
         {
             direction = Flat(direction);
             if (direction.sqrMagnitude > 0.001f)
-                Heading = Vector3.RotateTowards(Heading, direction, turnRate * Mathf.Deg2Rad * dt, 0f);
-            Speed = Mathf.MoveTowards(Speed, Mathf.Clamp(targetSpeed, 0f, maxSpeed), acceleration * dt);
+                Heading = Vector3.RotateTowards(Heading, direction, turnRate * boost * Mathf.Deg2Rad * dt, 0f);
+            Speed = Mathf.MoveTowards(Speed, Mathf.Clamp(targetSpeed, 0f, maxSpeed * 1.5f), acceleration * boost * dt);
             transform.position += Heading * Speed * dt;
             transform.rotation = Quaternion.LookRotation(Heading, Vector3.up);
         }

@@ -42,7 +42,7 @@ namespace Rambler.Crew.Battle
     }
 
     //The ship-to-ship fight on the tactical map (the ShipBattle partial). Both ships are lights moving over the Titan
-    //surface: Navigation keeps us circling at range (faster = harder to hit, more fuel), the enemy circles the other
+    //surface: Navigation flies us (ShipBattleNavigation; faster = harder to hit, more fuel), the enemy circles the other
     //way. The Weapons station scans the enemy (its rooms and systems show on the target picture once scanned), then
     //fires missiles and rockets at the hull or at a room. Each shot's chance falls with the target's speed and range
     //and rises with the gunner's skill; aiming at a room is harder than the hull, and an unscanned ship can only be hit
@@ -241,8 +241,10 @@ namespace Rambler.Crew.Battle
             m.Payload = shot;
             m.Launch(aim, shot.hit ? 9f : 5f);
             var missPoint = shot.hit ? null : aim;
+            if (shot.incoming) incoming.Add(m);
             m.Arrived = arrived =>
             {
+                incoming.Remove(arrived);
                 if (missPoint != null) Destroy(missPoint, 0.1f);
                 Resolve(shot);
             };
@@ -254,7 +256,8 @@ namespace Rambler.Crew.Battle
             if (State != BattleState.Fighting) return;
             if (shot.incoming)
             {
-                if (shot.hit) TakeHit(shot.damage);
+                if (DodgedByEvade(shot)) Log("<color=#59CC73>Dodged!</color> The hard burn slipped a shot that had us.");
+                else if (shot.hit) TakeHit(shot.damage);
                 else Log("Evaded a shot!");
                 return;
             }
@@ -278,16 +281,8 @@ namespace Rambler.Crew.Battle
             var me = space.playerShip;
             var foe = space.enemyShip;
 
-            //Navigation flies us; damaged or taken, the ship drifts to a stop
-            float want = 0f;
-            if (Fuel > 0f && CrewFactor(Station.Navigation) > 0f)
-                want = Escaping ? me.maxSpeed : me.maxSpeed * Mathf.Clamp01(0.35f + 0.45f * Effect(Station.Navigation));
-            Vector3 dir = Escaping ? me.Position - foe.Position : Orbit(me.Position, foe.Position, playerRange, 1f);
-            me.Drive(dir, want, dt);
-
-            //The engineer makes the fuel go further
-            Fuel = Mathf.Max(0f, Fuel - fuelBurn * me.SpeedShare * dt / Mathf.Max(0.5f, Effect(Station.Engines)));
-            if (Fuel <= 0f && !fuelWarned) { fuelWarned = true; Log("<color=#E64033>Out of fuel! The ship is drifting.</color>"); }
+            //Navigation flies us on the course and throttle set on its screen (ShipBattleNavigation)
+            FlyPlayer(dt);
 
             //The enemy circles the other way; engines down, it stops; bridge down, it can't steer
             float enemyWant = EnemyEnginesDown ? 0f : foe.maxSpeed * 0.8f;

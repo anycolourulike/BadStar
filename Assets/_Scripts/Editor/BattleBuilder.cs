@@ -45,6 +45,7 @@ namespace Rambler.EditorTools
                 BuildStationScreen(hud);
                 BuildSystemsScreen(hud);
                 TacticalBuilder.BuildWeaponsScreen(hud);
+                TacticalBuilder.BuildNavigationScreen(hud);
                 PrefabUtility.SaveAsPrefabAsset(root, PlayerCorePath);
             }
             finally { PrefabUtility.UnloadPrefabContents(root); }

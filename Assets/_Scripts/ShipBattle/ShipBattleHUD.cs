@@ -42,7 +42,8 @@ namespace Rambler.Crew.Battle
             //Out of the way while the ship map (the Systems station) is up, unless the battle is over
             if (map == null) map = FindObjectOfType<Rambler.UI.ShipMapPanel>(true);
             bool screenUp = (map != null && map.IsOpen) || (SystemsScreen.Instance != null && SystemsScreen.Instance.IsOpen) ||
-                            (WeaponsScreen.Instance != null && WeaponsScreen.Instance.IsOpen);
+                            (WeaponsScreen.Instance != null && WeaponsScreen.Instance.IsOpen) ||
+                            (NavigationScreen.Instance != null && NavigationScreen.Instance.IsOpen);
             bool show = b != null && (!screenUp || b.State != BattleState.Fighting);
             if (root != null && root.activeSelf != show) root.SetActive(show);
             if (b == null) return;

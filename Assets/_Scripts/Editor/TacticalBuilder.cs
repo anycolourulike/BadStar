@@ -384,6 +384,127 @@ namespace Rambler.EditorTools
             window.gameObject.SetActive(false);
         }
 
+        // =====================================================================
+        // Navigation screen (HUD)
+        // =====================================================================
+
+        internal static void BuildNavigationScreen(Transform hud)
+        {
+            var oldHolder = hud.Find("NavigationScreen");
+            if (oldHolder != null) Object.DestroyImmediate(oldHolder.gameObject);
+            var holder = Rect("NavigationScreen", hud);
+            Stretch(holder);
+            var canvas = holder.gameObject.AddComponent<Canvas>();
+            canvas.overrideSorting = true; canvas.sortingOrder = 50;
+            holder.gameObject.AddComponent<GraphicRaycaster>();
+            var screen = holder.gameObject.AddComponent<NavigationScreen>();
+            var so = new SerializedObject(screen);
+            var navBlue = new Color(0.3f, 0.65f, 0.95f, 1f);
+
+            var window = Img("Window", holder, new Color(0.03f, 0.03f, 0.04f, 1f)).rectTransform;
+            Stretch(window);
+            Set(so, "window", window.gameObject);
+
+            //The map, full screen; tapping it sets a course
+            var map = Raw("Map", window);
+            Stretch(map.rectTransform);
+            map.raycastTarget = true;
+            Set(so, "map", map);
+            Set(so, "mapTap", map.gameObject.AddComponent<TacticalMapTap>());
+            var markers = Rect("Markers", map.rectTransform); Stretch(markers);
+            Set(so, "markerLayer", markers);
+
+            //Course line and point (under the ship markers)
+            var line = Img("CourseLine", markers, new Color(0.4f, 0.85f, 1f, 0.75f));
+            Place(line.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(100, 5));
+            line.rectTransform.pivot = new Vector2(0f, 0.5f); line.raycastTarget = false;
+            Set(so, "courseLine", line.rectTransform);
+            var mark = Txt("CoursePoint", markers, "X", 54, TextAlignmentOptions.Center);
+            Place(mark.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(80, 80));
+            mark.color = new Color(0.4f, 0.85f, 1f); mark.fontStyle = FontStyles.Bold; mark.raycastTarget = false;
+            Set(so, "courseMark", mark.rectTransform);
+
+            var marker = Rect("MarkerTemplate", markers);
+            Place(marker, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(320, 190));
+            var item = marker.gameObject.AddComponent<CrewUIItem>();
+            item.highlight = Img("Ring", marker, new Color(1f, 0.3f, 0.25f, 0.9f), circle);
+            Place(item.highlight.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(64, 64));
+            item.highlight.raycastTarget = false;
+            var hole = Img("Hole", item.highlight.rectTransform, new Color(0, 0, 0, 0.55f), circle);
+            Place(hole.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(46, 46)); hole.raycastTarget = false;
+            item.title = Txt("Name", marker, "SHIP", 28, TextAlignmentOptions.Center);
+            Place(item.title.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0, -56), new Vector2(320, 36));
+            item.title.fontStyle = FontStyles.Bold; item.title.raycastTarget = false;
+            item.side = Txt("Info", marker, "", 22, TextAlignmentOptions.Center);
+            Place(item.side.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0, -86), new Vector2(320, 30));
+            item.side.color = Dim; item.side.raycastTarget = false;
+            Set(so, "markerTemplate", item);
+
+            //Header
+            var header = Img("Header", window, new Color(0.07f, 0.18f, 0.32f, 0.88f)).rectTransform;
+            header.anchorMin = new Vector2(0, 1); header.anchorMax = new Vector2(1, 1); header.pivot = new Vector2(0.5f, 1);
+            header.anchoredPosition = Vector2.zero; header.sizeDelta = new Vector2(0, 90);
+            var title = Txt("Status", header, "NAVIGATION", 30, TextAlignmentOptions.MidlineLeft);
+            title.rectTransform.anchorMin = Vector2.zero; title.rectTransform.anchorMax = Vector2.one;
+            title.rectTransform.offsetMin = new Vector2(28, 0); title.rectTransform.offsetMax = new Vector2(-120, 0);
+            title.enableAutoSizing = true; title.fontSizeMax = 30; title.fontSizeMin = 20;
+            Set(so, "headerText", title);
+            Set(so, "closeButton", CloseButton(header));
+
+            //Incoming warning, under the header
+            var warn = Txt("Incoming", window, "", 44, TextAlignmentOptions.Center);
+            TopCenter(warn, new Vector2(0, -104), new Vector2(900, 64)); warn.color = Red; warn.raycastTarget = false;
+            Set(so, "warningText", warn);
+
+            //Course and speed readout, above the buttons
+            var infoPanel = Img("Info", window, new Color(0.04f, 0.05f, 0.07f, 0.85f));
+            BottomLeft(infoPanel, new Vector2(20, 236), new Vector2(860, 120)); infoPanel.raycastTarget = false;
+            var info = Txt("Text", infoPanel.rectTransform, "", 28, TextAlignmentOptions.MidlineLeft);
+            Stretch(info.rectTransform); info.rectTransform.offsetMin = new Vector2(18, 4); info.rectTransform.offsetMax = new Vector2(-18, -4);
+            info.enableAutoSizing = true; info.fontSizeMax = 28; info.fontSizeMin = 18; info.raycastTarget = false;
+            Set(so, "infoText", info);
+
+            //Course buttons, then throttle, bottom left
+            string[] courses = { "ORBIT", "CLOSE IN", "KEEP AWAY", "STOP" };
+            var cb = new Button[4];
+            for (int i = 0; i < 4; i++)
+            {
+                cb[i] = Btn("Course" + i, window, TileCol, courses[i], 30, Vector2.zero, new Vector2(205, 96), out _);
+                BottomLeft(cb[i], new Vector2(20 + i * 218, 128), new Vector2(205, 96));
+            }
+            SetArray(so, "courseButtons", cb);
+            string[] throttles = { "SLOW", "CRUISE", "FULL" };
+            var tb = new Button[3];
+            for (int i = 0; i < 3; i++)
+            {
+                tb[i] = Btn("Throttle" + i, window, TileCol, throttles[i], 30, Vector2.zero, new Vector2(278, 96), out _);
+                BottomLeft(tb[i], new Vector2(20 + i * 291, 20), new Vector2(278, 96));
+            }
+            SetArray(so, "throttleButtons", tb);
+
+            //Evade and jump, bottom right
+            var evade = Btn("Evade", window, Orange, "EVADE", 40, Vector2.zero, new Vector2(340, 150), out var evadeLabel);
+            BottomRight(evade, new Vector2(-24, 156), new Vector2(340, 150));
+            evadeLabel.fontStyle = FontStyles.Bold;
+            Set(so, "evadeButton", evade); Set(so, "evadeLabel", evadeLabel);
+            var evadeBar = Bar(window, Vector2.zero, new Vector2(340, 14), Orange);
+            BottomRight(evadeBar.transform.parent, new Vector2(-24, 136), new Vector2(340, 14));
+            Set(so, "evadeBar", evadeBar);
+            var jump = Btn("Jump", window, TileCol, "PLOT JUMP", 32, Vector2.zero, new Vector2(340, 96), out var jumpLabel);
+            BottomRight(jump, new Vector2(-24, 34), new Vector2(340, 96));
+            Set(so, "jumpButton", jump); Set(so, "jumpLabel", jumpLabel);
+            var jumpBar = Bar(window, Vector2.zero, new Vector2(340, 12), navBlue);
+            BottomRight(jumpBar.transform.parent, new Vector2(-24, 16), new Vector2(340, 12));
+            Set(so, "jumpBar", jumpBar);
+
+            var hint = Txt("Hint", window, "", 28, TextAlignmentOptions.BottomRight);
+            BottomRight(hint, new Vector2(-388, 236), new Vector2(620, 80)); hint.color = Orange; hint.raycastTarget = false;
+            Set(so, "hintText", hint);
+
+            so.ApplyModifiedPropertiesWithoutUndo();
+            window.gameObject.SetActive(false);
+        }
+
         static RawImage Raw(string name, RectTransform parent)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(RawImage));
