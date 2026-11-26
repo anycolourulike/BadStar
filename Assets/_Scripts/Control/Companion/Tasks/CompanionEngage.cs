@@ -58,6 +58,8 @@ namespace Rambler.Control.CompanionTasks
                 nextCoverTry = 0f; //New threat direction: look for cover against it
             }
 
+            //Manning a ship's station: fights from it rather than leaving it for cover
+            if (brain.AtStation) return TaskStatus.Running;
             if (armed)
             {
                 if (m_UseCover.Value && Time.time >= nextCoverTry) TryCover();

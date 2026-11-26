@@ -84,11 +84,16 @@ namespace Rambler.Control
         public Vector3 OrderPosition { get; private set; }
         public GameObject OrderTarget { get; private set; }
         public bool HasPost => Order == SquadOrder.Hold || Order == SquadOrder.Move;
+        //The post is a ship's station ("Weapons"): set by OrderPost, cleared by any other order
+        public string PostName { get; private set; }
+        //At (or on the way to) a station it was posted to: stays there in a fight
+        public bool AtStation => PostName != null && HasPost;
 
         public void OrderFollow()
         {
             Order = SquadOrder.Follow;
             OrderTarget = null;
+            PostName = null;
         }
 
         public void OrderHold() => OrderHoldAt(transform.position);
@@ -98,6 +103,7 @@ namespace Rambler.Control
             Order = SquadOrder.Hold;
             OrderPosition = position;
             OrderTarget = null;
+            PostName = null;
         }
 
         //Go there, then hold there
@@ -107,6 +113,14 @@ namespace Rambler.Control
             Order = SquadOrder.Move;
             OrderPosition = destination;
             OrderTarget = null;
+            PostName = null;
+        }
+
+        //Go to a named post (a ship's station) and stay there, fighting from it
+        public void OrderPost(Vector3 spot, string postName)
+        {
+            OrderMove(spot);
+            PostName = postName;
         }
 
         public void OrderAttack(GameObject target)
@@ -114,6 +128,7 @@ namespace Rambler.Control
             if (target == null || !IsAlive(target)) return;
             Order = SquadOrder.Attack;
             OrderTarget = target;
+            PostName = null;
             Target = target;
             LastSeenTime = Time.time;
         }

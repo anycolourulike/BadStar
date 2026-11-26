@@ -69,16 +69,48 @@ namespace Rambler.Crew.Battle
         }
 
         //The trait that suits this station, if the operator has it
-        public bool OperatorHasStationTrait
+        public bool OperatorHasStationTrait => HasStationTrait(OperatorRecord);
+
+        public bool HasStationTrait(CharacterRecord r)
+        {
+            if (r == null) return false;
+            foreach (var t in r.Traits) if (CrewTraits.StationIndex(t) == (int)station) return true;
+            return false;
+        }
+
+        public bool HasStationTrait(GameObject c) => HasStationTrait(RecordOf(c));
+
+        static CharacterRecord RecordOf(GameObject c)
+        {
+            var roster = c != null ? c.GetComponent<RosterMember>() : null;
+            return roster != null ? roster.Record : null;
+        }
+
+        //How well this character would run the station: their level in its skill plus the trait bonus
+        public int SkillOf(GameObject c)
+        {
+            if (c == null) return 0;
+            var record = RecordOf(c);
+            if (record == null) return defaultSkill;
+            var skill = Skill;
+            int level = skill != null ? record.GetSkill(skill) : defaultSkill;
+            return level + (HasStationTrait(record) ? CrewTraits.StationBonus : 0);
+        }
+
+        //Where whoever works it stands: the middle of its area, on the floor
+        public Vector3 StandPoint
         {
             get
             {
-                var r = OperatorRecord;
-                if (r == null) return false;
-                foreach (var t in r.Traits) if (CrewTraits.StationIndex(t) == (int)station) return true;
-                return false;
+                var c = area != null ? area : GetComponent<Collider>();
+                if (c == null) return transform.position;
+                var p = c.bounds.center;
+                p.y = transform.position.y;
+                return p;
             }
         }
+
+        public string DisplayName => station == Station.Systems ? "Systems" : station.ToString();
 
         public SkillDefinition Skill
         {
@@ -131,19 +163,7 @@ namespace Rambler.Crew.Battle
         }
 
         //The operator's level in this station's skill, plus their trait's bonus (0 when unmanned)
-        public int OperatorSkill
-        {
-            get
-            {
-                var op = Operator;
-                if (op == null) return 0;
-                var record = OperatorRecord;
-                if (record == null) return defaultSkill;
-                var skill = Skill;
-                int level = skill != null ? record.GetSkill(skill) : defaultSkill;
-                return level + (OperatorHasStationTrait ? CrewTraits.StationBonus : 0);
-            }
-        }
+        public int OperatorSkill => SkillOf(Operator);
 
         protected override string DefaultLabel => station == Station.Systems ? "SYSTEMS" : station.ToString().ToUpperInvariant();
         protected override Color PromptColor => ColorFor(station);

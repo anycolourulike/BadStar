@@ -19,7 +19,8 @@ namespace Rambler.UI
     //the squad can see, and points of interest.
     //  Squad bar (left)   pick one unit, or ALL
     //  Tap the ground     move there and hold          Tap an enemy   attack it
-    //  Buttons (right)    Follow, Hold, Attack (hint), Take Control
+    //  Buttons (right)    Follow, Hold, Attack (hint), Take Control, Man Stations (aboard the ship in a battle)
+    //  Tap a station      the selected unit mans it (whole squad: whoever runs it best); they stay at it in a fight
     //Orders run when the game resumes. Built by Tools > Company > Build Command Screen.
     public class CommandScreen : MonoBehaviour
     {
@@ -40,6 +41,8 @@ namespace Rambler.UI
         [SerializeField] Button holdButton;
         [SerializeField] Button attackButton;
         [SerializeField] Button controlButton;
+        [Tooltip("Aboard the ship in a battle: sends each crew member to the station that suits them best.")]
+        [SerializeField] Button stationsButton;
         [SerializeField] Button resumeButton;
         [SerializeField] Button closeButton;
         [SerializeField] TextMeshProUGUI selectedText;
@@ -64,8 +67,16 @@ namespace Rambler.UI
         [SerializeField] Color tabOff = new Color(0.16f, 0.24f, 0.32f);
 
         const string DefaultHint = "Tap the ground to move there and hold. Tap an enemy to attack it. Orders start when you resume.";
+        const string StationHint = "Tap a station to man it, or MAN STATIONS to post everyone. Tap the ground to move, an enemy to attack.";
+        [Tooltip("A tap this close to a station (metres) mans it instead of moving there.")]
+        [SerializeField] float stationTapRadius = 1.8f;
 
-        struct Poi { public Vector3 position; public PointOfInterest.Kind kind; public string label; }
+        //A station marker uses its station's colour and initial instead of its kind's
+        struct Poi { public Vector3 position; public PointOfInterest.Kind kind; public string label; public bool custom; public Color colour; public string glyph; }
+
+        //The ship's stations, when the squad is aboard in a battle (found when the map opens)
+        readonly List<Rambler.Crew.Battle.StationTerminal> stations = new List<Rambler.Crew.Battle.StationTerminal>();
+        string Hint0 => stations.Count > 0 ? StationHint : DefaultHint;
 
         Camera mapCam;
         Camera gameCam; //Switched off while the map is open
@@ -96,6 +107,7 @@ namespace Rambler.UI
             Wire(holdButton, () => ForSelection(UnitHold, "Holding"));
             Wire(attackButton, () => Hint("Tap an enemy on the map to attack it."));
             Wire(controlButton, TakeControl);
+            Wire(stationsButton, ManStations);
         }
 
         void OnDestroy()
@@ -123,9 +135,12 @@ namespace Rambler.UI
             selected = selector.activePlayer;
             SetUpCamera();
             FrameSquad();
+            stations.Clear();
+            stations.AddRange(FindObjectsOfType<Rambler.Crew.Battle.StationTerminal>());
+            if (stationsButton != null) stationsButton.gameObject.SetActive(stations.Count > 0);
             GatherPois();
             RefreshEnemies();
-            Hint(DefaultHint);
+            Hint(Hint0);
         }
 
         public void Close()
@@ -252,12 +267,35 @@ namespace Rambler.UI
                     Attack(health.gameObject);
                     return;
                 }
-                MoveTo(hit.point);
+                MoveOrMan(hit.point);
                 return;
             }
             //Nothing under the finger (e.g. off the level's colliders): use the squad's ground height
             float y = selector != null && selector.activePlayer != null ? selector.activePlayer.transform.position.y : 0f;
-            if (new Plane(Vector3.up, new Vector3(0, y, 0)).Raycast(ray, out float enter)) MoveTo(ray.GetPoint(enter));
+            if (new Plane(Vector3.up, new Vector3(0, y, 0)).Raycast(ray, out float enter)) MoveOrMan(ray.GetPoint(enter));
+        }
+
+        //A tap on (or right by) a station mans it; anywhere else is a move
+        void MoveOrMan(Vector3 point)
+        {
+            var st = StationAt(point);
+            if (st != null) ManStation(st);
+            else MoveTo(point);
+        }
+
+        Rambler.Crew.Battle.StationTerminal StationAt(Vector3 point)
+        {
+            Rambler.Crew.Battle.StationTerminal best = null;
+            float bestD = stationTapRadius;
+            foreach (var st in stations)
+            {
+                if (st == null) continue;
+                Vector3 d = st.StandPoint - point; d.y = 0f;
+                Vector3 d2 = st.transform.position - point; d2.y = 0f;
+                float dist = Mathf.Min(d.magnitude, d2.magnitude);
+                if (dist <= bestD) { bestD = dist; best = st; }
+            }
+            return best;
         }
 
         void Update()
@@ -286,7 +324,7 @@ namespace Rambler.UI
         void Select(GameObject unit)
         {
             selected = unit;
-            Hint(DefaultHint);
+            Hint(Hint0);
         }
 
         void MoveTo(Vector3 point)
@@ -362,6 +400,104 @@ namespace Rambler.UI
             if (brain != null) brain.OrderAttack(enemy);
         }
 
+        // ---------- Stations (aboard the ship in a battle) ----------
+
+        //Man one station: the selected unit, or with the whole squad selected, the crew member who'd run it best
+        //(preferring one who isn't already posted at another station)
+        void ManStation(Rambler.Crew.Battle.StationTerminal st)
+        {
+            var units = Selection();
+            if (units.Count == 0) return;
+            GameObject unit = selected;
+            if (unit == null)
+            {
+                int bestScore = int.MinValue;
+                foreach (var u in units)
+                {
+                    var b = u.GetComponent<CompanionBrain>();
+                    if (Controlled(u) || b == null) continue;
+                    int score = st.SkillOf(u) - (b.PostName != null && b.PostName != st.DisplayName ? 100 : 0);
+                    if (score > bestScore) { bestScore = score; unit = u; }
+                }
+                if (unit == null) unit = selector.activePlayer; //Nobody else: you go
+            }
+            if (unit == null) return;
+
+            //Whoever was posted there swaps to the station this unit leaves (or holds where they are)
+            var brain = unit.GetComponent<CompanionBrain>();
+            string vacated = !Controlled(unit) && brain != null ? brain.PostName : null;
+            foreach (var m in Living())
+            {
+                var other = m == unit ? null : m.GetComponent<CompanionBrain>();
+                if (other == null || other.PostName != st.DisplayName) continue;
+                var back = vacated != null ? stations.Find(s => s != null && s.DisplayName == vacated) : null;
+                if (back != null) Post(m, back); else other.OrderHold();
+            }
+            Post(unit, st);
+            Hint(unit.name + (Controlled(unit) ? " (you) heads" : " mans") + " " + st.DisplayName + ": " + st.SkillName + " " + st.SkillOf(unit) +
+                 (st.HasStationTrait(unit) ? " with the trait bonus" : "") + ".");
+        }
+
+        //Battle stations: trait holders to their own station first, then the rest by priority (Weapons, Engines,
+        //Navigation, Systems) to whoever is best at it. A station you're standing at is yours; spare crew hold.
+        void ManStations()
+        {
+            var crew = new List<GameObject>();
+            foreach (var u in Living()) if (!Controlled(u) && u.GetComponent<CompanionBrain>() != null) crew.Add(u);
+            if (crew.Count == 0) { Hint("No crew to post. Hire some at the Crew terminal."); return; }
+            var open = new List<Rambler.Crew.Battle.StationTerminal>();
+            foreach (var st in stations) if (st != null && !st.PlayerControlled) open.Add(st);
+            open.Sort((a, b) => Priority(a.Station).CompareTo(Priority(b.Station)));
+
+            var plan = new List<string>();
+            foreach (var st in open.ToArray())
+            {
+                GameObject best = null; int bestSkill = int.MinValue;
+                foreach (var u in crew) if (st.HasStationTrait(u) && st.SkillOf(u) > bestSkill) { bestSkill = st.SkillOf(u); best = u; }
+                if (best == null) continue;
+                Post(best, st); plan.Add(best.name + " " + st.DisplayName);
+                crew.Remove(best); open.Remove(st);
+            }
+            foreach (var st in open.ToArray())
+            {
+                if (crew.Count == 0) break;
+                GameObject best = null; int bestSkill = int.MinValue;
+                foreach (var u in crew) if (st.SkillOf(u) > bestSkill) { bestSkill = st.SkillOf(u); best = u; }
+                Post(best, st); plan.Add(best.name + " " + st.DisplayName);
+                crew.Remove(best); open.Remove(st);
+            }
+            foreach (var u in crew) u.GetComponent<CompanionBrain>().OrderHold();
+
+            string text = "Battle stations: " + string.Join(", ", plan) + ".";
+            if (open.Count > 0)
+            {
+                var names = new List<string>();
+                foreach (var st in open) names.Add(st.DisplayName);
+                text += " Unmanned: " + string.Join(", ", names) + ".";
+            }
+            Hint(text);
+        }
+
+        static int Priority(Rambler.Crew.Battle.Station s)
+        {
+            switch (s)
+            {
+                case Rambler.Crew.Battle.Station.Weapons: return 0;
+                case Rambler.Crew.Battle.Station.Engines: return 1;
+                case Rambler.Crew.Battle.Station.Navigation: return 2;
+                default: return 3;
+            }
+        }
+
+        void Post(GameObject u, Rambler.Crew.Battle.StationTerminal st)
+        {
+            Vector3 spot = st.StandPoint;
+            if (NavMesh.SamplePosition(spot, out var hit, 1.5f, NavMesh.AllAreas)) spot = hit.position;
+            if (Controlled(u)) { var mover = u.GetComponent<Mover>(); if (mover != null) mover.StartMoveAction(spot, 1f); return; }
+            var brain = u.GetComponent<CompanionBrain>();
+            if (brain != null) brain.OrderPost(spot, st.DisplayName);
+        }
+
         //A loose ring so a group order doesn't stack everyone on one spot
         static Vector3 Spread(int i, int count)
         {
@@ -404,7 +540,7 @@ namespace Rambler.UI
                 }
                 else if (brain != null)
                 {
-                    if (brain.HasPost) Line(from, brain.OrderPosition, orderLine, true, brain.Order == SquadOrder.Move ? "M" : "H");
+                    if (brain.HasPost) Line(from, brain.OrderPosition, orderLine, true, brain.PostName != null ? brain.PostName.Substring(0, 1) : brain.Order == SquadOrder.Move ? "M" : "H");
                     else if (brain.Order == SquadOrder.Attack && brain.OrderTarget != null) Line(from, brain.OrderTarget.transform.position, attackLine, false, null);
                 }
             }
@@ -414,8 +550,8 @@ namespace Rambler.UI
             {
                 var item = Take(poiMarkerTemplate);
                 if (!Place(item, p.position)) continue;
-                if (item.portrait != null) item.portrait.color = PointOfInterest.Colour(p.kind);
-                CrewUIItem.SetText(item.initials, PointOfInterest.Glyph(p.kind));
+                if (item.portrait != null) item.portrait.color = p.custom ? p.colour : PointOfInterest.Colour(p.kind);
+                CrewUIItem.SetText(item.initials, p.custom ? p.glyph : PointOfInterest.Glyph(p.kind));
                 CrewUIItem.SetText(item.title, p.label);
             }
 
@@ -452,6 +588,12 @@ namespace Rambler.UI
             if (holdButton != null) holdButton.interactable = sel.Count > 0;
             if (attackButton != null) attackButton.interactable = sel.Count > 0 && visibleEnemies.Count > 0;
             if (controlButton != null) controlButton.interactable = selected != null && IsAlive(selected) && !Controlled(selected);
+            if (stationsButton != null && stations.Count > 0)
+            {
+                bool crew = false;
+                foreach (var u in Living()) if (!Controlled(u) && u.GetComponent<CompanionBrain>() != null) crew = true;
+                stationsButton.interactable = crew;
+            }
             CrewUIItem.SetText(selectedText, "Selected: " + (selected == null ? "Whole squad" : selected.name));
         }
 
@@ -472,6 +614,7 @@ namespace Rambler.UI
             if (Controlled(m)) return "You";
             var brain = m.GetComponent<CompanionBrain>();
             if (brain == null) return "";
+            if (brain.PostName != null) return (brain.Order == SquadOrder.Move ? "To " : "") + brain.PostName;
             switch (brain.Order)
             {
                 case SquadOrder.Hold: return "Hold";
@@ -609,6 +752,10 @@ namespace Rambler.UI
             foreach (var c in FindObjectsOfType<CrewTerminal>())
                 if (c.GetComponent<PointOfInterest>() == null)
                     pois.Add(new Poi { position = c.transform.position, kind = PointOfInterest.Kind.Crew, label = "Crew" });
+            foreach (var st in stations)
+                if (st != null && st.GetComponent<PointOfInterest>() == null)
+                    pois.Add(new Poi { position = st.transform.position, kind = PointOfInterest.Kind.Terminal, label = st.DisplayName.ToUpperInvariant(),
+                                       custom = true, colour = Rambler.Crew.Battle.StationTerminal.ColorFor(st.Station), glyph = st.DisplayName.Substring(0, 1) });
             foreach (var p in FindObjectsOfType<Portal>())
                 if (p.GetComponent<PointOfInterest>() == null)
                     pois.Add(new Poi { position = p.transform.position, kind = PointOfInterest.Kind.Exit, label = "Exit" });

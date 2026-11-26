@@ -14,7 +14,7 @@ namespace Rambler.EditorTools
     {
         const string PlayerCorePath = "Assets/_Prefabs/PlayerCore/PlayerCore.prefab";
         static readonly Color Window = Hex("0A0F17F0"), Panel = Hex("171F29E6"), Tile = Hex("293D52E6");
-        static readonly Color Orange = Hex("F29E33FF"), Red = Hex("E64033FF"), Blue = Hex("4CA6F2FF"), Dim = new Color(1, 1, 1, 0.7f);
+        static readonly Color Orange = Hex("F29E33FF"), Red = Hex("E64033FF"), Blue = Hex("4CA6F2FF"), Green = Hex("4FB866FF"), Dim = new Color(1, 1, 1, 0.7f);
 
         [MenuItem("Tools/Company/Build Command Screen")]
         static void Build()
@@ -157,11 +157,13 @@ namespace Rambler.EditorTools
 
                 //5. Orders (right)
                 var orders = B.Img("Orders", window, Panel, null);
-                B.TopRight(orders, new Vector2(-24, -132), new Vector2(330, 470));
+                B.TopRight(orders, new Vector2(-24, -132), new Vector2(330, 582));
                 B.Set(so, "followButton", B.Btn("Follow", orders.rectTransform, Blue, "FOLLOW", 36, new Vector2(20, -20), new Vector2(290, 96), out _));
                 B.Set(so, "holdButton", B.Btn("Hold", orders.rectTransform, Orange, "HOLD", 36, new Vector2(20, -132), new Vector2(290, 96), out _));
                 B.Set(so, "attackButton", B.Btn("Attack", orders.rectTransform, Red, "ATTACK", 36, new Vector2(20, -244), new Vector2(290, 96), out _));
                 B.Set(so, "controlButton", B.Btn("TakeControl", orders.rectTransform, Tile, "TAKE CONTROL", 34, new Vector2(20, -356), new Vector2(290, 96), out _));
+                //Aboard the ship in a battle: send each crew member to the station that suits them (hidden elsewhere)
+                B.Set(so, "stationsButton", B.Btn("Stations", orders.rectTransform, Green, "MAN STATIONS", 34, new Vector2(20, -468), new Vector2(290, 96), out _));
 
                 //6. Footer
                 var footer = B.Img("Footer", window, Window, null);
