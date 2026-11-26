@@ -141,21 +141,21 @@ namespace Rambler.Crew.Battle
             foreach (var s in order) while ((s != Station.Weapons || IsManned(Station.Weapons)) && pips[s] < maxPips && FreePips > 0) pips[s]++;
         }
 
-        //Vent rooms boarders are in when none of the squad is; let the air back in once they're gone
+        //Vent rooms boarders (or a big fire) are in when none of the squad is; let the air back in once it's clear
         void ThinkSystems()
         {
             foreach (var room in ShipRoom.All)
             {
                 if (room == null || breaches.ContainsKey(room)) continue;
-                bool enemies = HasEnemies(room), friends = room.HasPlayerSide();
-                if (enemies && !friends && !room.IsVenting)
+                bool enemies = HasEnemies(room), burning = FireLevel(room) >= 0.4f, friends = room.HasPlayerSide();
+                if ((enemies || burning) && !friends && !room.IsVenting)
                 {
                     room.VentOxygen();
                     aiVented.Add(room);
-                    Log("Ship Systems vents the " + room.roomName + " on the boarders.");
+                    Log("Ship Systems vents the " + room.roomName + (enemies ? " on the boarders." : " to starve the fire."));
                     return;
                 }
-                if (aiVented.Contains(room) && (!enemies || friends))
+                if (aiVented.Contains(room) && ((!enemies && !OnFire(room)) || friends))
                 {
                     room.RestoreAtmosphere();
                     aiVented.Remove(room);

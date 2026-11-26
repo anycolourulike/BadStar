@@ -132,6 +132,7 @@ namespace Rambler.Crew.Battle
         void Start()
         {
             foreach (var t in FindObjectsOfType<StationTerminal>()) terminals[t.Station] = t;
+            MapStationRooms();
             if (ShipAI.Instance != null) ShipAI.Instance.SetController(ShipFaction.Player);
 
             var company = Company.Instance;
@@ -223,6 +224,7 @@ namespace Rambler.Crew.Battle
             if (!EnemyEnginesDown && (boardingTimer -= dt) <= 0f) { boardingTimer = boardingSeconds; Board(); }
 
             CrewUpdate(dt);
+            RoomsUpdate(dt);
             if (State != BattleState.Fighting) return;
             if (!SquadAlive()) End(BattleState.Lost);
             Changed?.Invoke();
@@ -239,7 +241,7 @@ namespace Rambler.Crew.Battle
         //A station boarders have taken does nothing for us; one being fought over works at half.
         public float CrewFactor(Station s)
         {
-            if (damaged.Contains(s)) return 0f;
+            if (damaged.Contains(s) || IsEmped(s)) return 0f;
             var t = Terminal(s);
             if (t != null && t.Hijacked) return 0f;
             if (t == null || t.Operator == null) return s == Station.Weapons ? 0f : unmannedFactor;
@@ -299,16 +301,20 @@ namespace Rambler.Crew.Battle
             return true;
         }
 
-        //When power drops (engines hit), pips come out of Systems, then Navigation, then Weapons
+        //When power drops (engines hit), pips come out of Navigation, Weapons and Systems in turn, but Systems keeps
+        //its last pip (life support) until there's nothing else to take. When power comes back and Systems has none,
+        //it gets one back on its own, so the air doesn't wait for someone to man Engines.
         void ClampPower()
         {
-            var order = new[] { Station.Systems, Station.Navigation, Station.Weapons };
+            var order = new[] { Station.Navigation, Station.Weapons, Station.Systems };
             int i = 0;
             while (FreePips < 0 && i < 20)
             {
-                foreach (var s in order) if (FreePips < 0 && pips[s] > 0) pips[s]--;
+                foreach (var s in order) if (FreePips < 0 && pips[s] > (s == Station.Systems ? 1 : 0)) pips[s]--;
                 i++;
             }
+            if (FreePips < 0 && pips[Station.Systems] > 0) pips[Station.Systems]--;
+            if (pips[Station.Systems] == 0 && FreePips > 0) pips[Station.Systems] = 1;
         }
 
         // ---------- Orders from the station screens ----------
@@ -371,8 +377,11 @@ namespace Rambler.Crew.Battle
         void TakeHit(int dmg)
         {
             Hull = Mathf.Max(0, Hull - dmg);
-            string msg = "Hit! -" + dmg + " hull.";
             CameraShake();
+            //The shot lands in a room: what it does there depends on the room (RoomHit in ShipBattleRooms)
+            var hitRoom = RandomRoom();
+            string msg = "Hit" + (hitRoom != null ? " in the " + hitRoom.roomName : "") + "! -" + dmg + " hull.";
+            if (hitRoom != null) { msg += RoomHitEffects(hitRoom); Log(msg); if (Hull <= 0) End(BattleState.Lost); return; }
             if (UnityEngine.Random.value < stationHitChance)
             {
                 var candidates = new List<Station>();

@@ -167,13 +167,17 @@ namespace Rambler.Crew.Battle
 
         protected override string DefaultLabel => station == Station.Systems ? "SYSTEMS" : station.ToString().ToUpperInvariant();
         protected override Color PromptColor => ColorFor(station);
-        protected override bool HasScreen => station == Station.Systems ? Map != null : StationScreen.Find() != null;
-        protected override bool ScreenOpen => station == Station.Systems ? Map != null && Map.IsOpen : StationScreen.Find() != null && StationScreen.Find().IsOpenFor(this);
+        //Ship Systems opens the live top-down view of the ship (the older room map if that screen isn't built)
+        protected override bool HasScreen => station == Station.Systems ? SystemsScreen.Find() != null || Map != null : StationScreen.Find() != null;
+        protected override bool ScreenOpen => station == Station.Systems
+            ? (SystemsScreen.Find() != null ? SystemsScreen.Find().IsOpen : Map != null && Map.IsOpen)
+            : StationScreen.Find() != null && StationScreen.Find().IsOpenFor(this);
 
         protected override void OpenScreen()
         {
-            if (station == Station.Systems) Map.Open();
-            else StationScreen.Find().Open(this);
+            if (station != Station.Systems) StationScreen.Find().Open(this);
+            else if (SystemsScreen.Find() != null) SystemsScreen.Find().Open();
+            else Map.Open();
         }
 
         static ShipMapPanel Map => FindObjectOfType<ShipMapPanel>(true);

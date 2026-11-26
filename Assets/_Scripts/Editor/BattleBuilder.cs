@@ -43,6 +43,7 @@ namespace Rambler.EditorTools
                 if (hud == null) { Debug.LogError("[Company] No HUD in " + PlayerCorePath); return; }
                 BuildBattleHUD(hud);
                 BuildStationScreen(hud);
+                BuildSystemsScreen(hud);
                 PrefabUtility.SaveAsPrefabAsset(root, PlayerCorePath);
             }
             finally { PrefabUtility.UnloadPrefabContents(root); }
@@ -203,6 +204,85 @@ namespace Rambler.EditorTools
             SetArray(so, "repairButtons", repairs);
             Set(so, "repairBar", FillBar(eng, new Vector2(0, -470), new Vector2(984, 26), Orange, false));
             eng.gameObject.SetActive(false);
+
+            so.ApplyModifiedPropertiesWithoutUndo();
+            window.gameObject.SetActive(false);
+        }
+
+        //Ship Systems: the live top-down view of the ship (left), and the selected room's panel (right)
+        static void BuildSystemsScreen(Transform hud)
+        {
+            var holder = Holder(hud, "SystemsScreen", 49);
+            var screen = holder.gameObject.AddComponent<SystemsScreen>();
+            var so = new SerializedObject(screen);
+
+            var window = Img("Window", holder, WindowCol).rectTransform;
+            Stretch(window);
+            Set(so, "window", window.gameObject);
+
+            var header = Img("Header", window, Hex("1A6B3AFF")).rectTransform;
+            header.anchorMin = new Vector2(0, 1); header.anchorMax = new Vector2(1, 1); header.pivot = new Vector2(0.5f, 1);
+            header.anchoredPosition = Vector2.zero; header.sizeDelta = new Vector2(0, 96);
+            var title = Txt("Status", header, "SHIP SYSTEMS", 32, TextAlignmentOptions.MidlineLeft);
+            title.rectTransform.anchorMin = Vector2.zero; title.rectTransform.anchorMax = Vector2.one;
+            title.rectTransform.offsetMin = new Vector2(28, 0); title.rectTransform.offsetMax = new Vector2(-120, 0);
+            title.enableAutoSizing = true; title.fontSizeMax = 32; title.fontSizeMin = 22;
+            Set(so, "headerText", title);
+            var close = Img("Close", header, Color.white, circle);
+            TopRight(close, new Vector2(-12, -8), new Vector2(80, 80));
+            var cl = Txt("Label", close.rectTransform, "X", 40, TextAlignmentOptions.Center); Stretch(cl.rectTransform); cl.color = Color.black;
+            Set(so, "closeButton", close.gameObject.AddComponent<Button>());
+
+            //The camera view
+            var viewGo = new GameObject("View", typeof(RectTransform), typeof(RawImage));
+            var viewRect = (RectTransform)viewGo.transform; viewRect.SetParent(window, false);
+            viewRect.anchorMin = Vector2.zero; viewRect.anchorMax = Vector2.one; viewRect.offsetMin = new Vector2(16, 16); viewRect.offsetMax = new Vector2(-576, -108);
+            var raw = viewGo.GetComponent<RawImage>(); raw.color = Color.white; raw.raycastTarget = false;
+            Set(so, "view", raw);
+            var zones = Rect("Zones", viewRect); Stretch(zones);
+            Set(so, "zoneLayer", zones);
+
+            //A room's tap zone
+            var zone = Img("ZoneTemplate", zones, new Color(0.3f, 0.6f, 0.9f, 0.06f));
+            Stretch(zone.rectTransform);
+            var item = zone.gameObject.AddComponent<SystemsRoomZone>();
+            item.fill = zone;
+            item.frame = zone.gameObject.AddComponent<Outline>();
+            item.button = zone.gameObject.AddComponent<Button>(); item.button.transition = Selectable.Transition.None;
+            item.nameText = Txt("Name", zone.rectTransform, "ROOM", 24, TextAlignmentOptions.TopLeft);
+            Stretch(item.nameText.rectTransform); item.nameText.rectTransform.offsetMin = new Vector2(8, 6); item.nameText.rectTransform.offsetMax = new Vector2(-8, -6);
+            item.nameText.fontStyle = FontStyles.Bold; item.nameText.color = new Color(1, 1, 1, 0.85f); item.nameText.raycastTarget = false;
+            item.nameText.enableAutoSizing = true; item.nameText.fontSizeMax = 24; item.nameText.fontSizeMin = 16;
+            item.alertText = Txt("Alerts", zone.rectTransform, "", 26, TextAlignmentOptions.Center);
+            Stretch(item.alertText.rectTransform); item.alertText.rectTransform.offsetMax = new Vector2(0, -26);
+            item.alertText.fontStyle = FontStyles.Bold; item.alertText.raycastTarget = false;
+            item.alertText.enableAutoSizing = true; item.alertText.fontSizeMax = 26; item.alertText.fontSizeMin = 16;
+            Set(so, "zoneTemplate", item);
+
+            //The selected room
+            var panel = Img("RoomPanel", window, PanelCol).rectTransform;
+            panel.anchorMin = new Vector2(1, 0); panel.anchorMax = new Vector2(1, 1); panel.pivot = new Vector2(1, 0.5f);
+            panel.offsetMin = new Vector2(-560, 16); panel.offsetMax = new Vector2(-16, -108);
+            var roomTitle = Txt("Room", panel, "Tap a room", 40, TextAlignmentOptions.MidlineLeft);
+            TopLeft(roomTitle, new Vector2(24, -12), new Vector2(500, 60)); roomTitle.fontStyle = FontStyles.Bold;
+            Set(so, "roomTitle", roomTitle);
+            var info = Txt("Info", panel, "", 26, TextAlignmentOptions.TopLeft);
+            info.rectTransform.anchorMin = new Vector2(0, 0); info.rectTransform.anchorMax = new Vector2(1, 1);
+            info.rectTransform.offsetMin = new Vector2(24, 400); info.rectTransform.offsetMax = new Vector2(-24, -80);
+            info.enableAutoSizing = true; info.fontSizeMax = 26; info.fontSizeMin = 18;
+            Set(so, "roomInfo", info);
+            var actions = Rect("Actions", panel);
+            actions.anchorMin = new Vector2(0, 0); actions.anchorMax = new Vector2(1, 0); actions.pivot = new Vector2(0.5f, 0);
+            actions.anchoredPosition = Vector2.zero; actions.sizeDelta = new Vector2(0, 400);
+            Set(so, "sealButton", Btn("Seal", actions, TileCol, "SEAL DOORS", 30, new Vector2(24, -10), new Vector2(240, 90), out _));
+            Set(so, "openDoorsButton", Btn("OpenDoors", actions, TileCol, "OPEN DOORS", 30, new Vector2(280, -10), new Vector2(240, 90), out _));
+            Set(so, "ventButton", Btn("Vent", actions, Blue, "VENT AIR", 30, new Vector2(24, -112), new Vector2(240, 90), out _));
+            Set(so, "restoreButton", Btn("Restore", actions, TileCol, "RESTORE AIR", 30, new Vector2(280, -112), new Vector2(240, 90), out _));
+            Set(so, "sendCrewButton", Btn("SendCrew", actions, Orange, "SEND CREW", 32, new Vector2(24, -214), new Vector2(496, 90), out _));
+            var act = Txt("Action", actions, "", 24, TextAlignmentOptions.TopLeft);
+            TopLeft(act, new Vector2(24, -314), new Vector2(496, 76)); act.color = Orange;
+            act.enableAutoSizing = true; act.fontSizeMax = 24; act.fontSizeMin = 18;
+            Set(so, "actionText", act);
 
             so.ApplyModifiedPropertiesWithoutUndo();
             window.gameObject.SetActive(false);

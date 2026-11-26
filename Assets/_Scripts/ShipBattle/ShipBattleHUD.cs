@@ -41,7 +41,8 @@ namespace Rambler.Crew.Battle
             var b = ShipBattle.Instance;
             //Out of the way while the ship map (the Systems station) is up, unless the battle is over
             if (map == null) map = FindObjectOfType<Rambler.UI.ShipMapPanel>(true);
-            bool show = b != null && (map == null || !map.IsOpen || b.State != BattleState.Fighting);
+            bool screenUp = (map != null && map.IsOpen) || (SystemsScreen.Instance != null && SystemsScreen.Instance.IsOpen);
+            bool show = b != null && (!screenUp || b.State != BattleState.Fighting);
             if (root != null && root.activeSelf != show) root.SetActive(show);
             if (b == null) return;
             timer += Time.unscaledDeltaTime;
@@ -58,6 +59,8 @@ namespace Rambler.Crew.Battle
                             (boarders > 0 ? "     <color=#E64033>" + boarders + " aboard!</color>" : "") +
                             (b.Escaping ? "     Jump " + Mathf.RoundToInt(b.EscapeCharge * 100f) + "%" : "") +
                             (b.BreachSummary != null ? "     <color=#4CA6F2>BREACH: " + b.BreachSummary + " (no air)</color>" : "") +
+                            (b.FireSummary != null ? "     <color=#FF7319>FIRE: " + b.FireSummary + "</color>" : "") +
+                            (!b.LifeSupportOnline ? "     <color=#73D9F2>LIFE SUPPORT DOWN</color>" : "") +
                             (b.CratesLost > 0 ? "     <color=#E64033>Cargo lost: " + b.CratesLost + "</color>" : ""));
 
             for (int i = 0; i < 4; i++)

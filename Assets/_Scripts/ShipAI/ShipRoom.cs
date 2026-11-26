@@ -32,6 +32,11 @@ namespace Rambler.Ship
         [SerializeField] float coolRate = 8f;
         [Tooltip("Degrees regained per second once restored.")]
         [SerializeField] float warmRate = 5f;
+        [Tooltip("Oxygen % lost per second while the ship's life support is down (it no longer tops the air up).")]
+        [SerializeField] float leakRate = 0.6f;
+
+        //Off when the ship's oxygen system fails (a ship battle sets it): the air slowly runs down instead of refilling
+        public bool LifeSupport { get; set; } = true;
 
         float oxygenTarget;
         float temperatureTarget;
@@ -76,8 +81,12 @@ namespace Rambler.Ship
 
         void Update()
         {
-            float o2Rate = oxygenTarget < Oxygen ? ventRate : refillRate;
-            Oxygen = Mathf.MoveTowards(Oxygen, oxygenTarget, o2Rate * Time.deltaTime);
+            if (!LifeSupport && oxygenTarget >= Oxygen) Oxygen = Mathf.Max(0f, Oxygen - leakRate * Time.deltaTime);
+            else
+            {
+                float o2Rate = oxygenTarget < Oxygen ? ventRate : refillRate;
+                Oxygen = Mathf.MoveTowards(Oxygen, oxygenTarget, o2Rate * Time.deltaTime);
+            }
             float tempRate = temperatureTarget < Temperature ? coolRate : warmRate;
             Temperature = Mathf.MoveTowards(Temperature, temperatureTarget, tempRate * Time.deltaTime);
         }
