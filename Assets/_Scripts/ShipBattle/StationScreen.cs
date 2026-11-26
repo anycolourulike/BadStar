@@ -8,7 +8,7 @@ namespace Rambler.Crew.Battle
     //opens the ship map). The battle keeps running while it's open. Built by Tools > Company > Build Ship Battle.
     //  Navigation  evasion, and the escape jump (Plot escape / Cancel)
     //  Weapons     charge, firepower, and what to aim at (Hull, Weapons, Engines) with the enemy's system health
-    //  Engines     the power pips for Navigation, Weapons and Systems (- / +), and repairs to damaged stations
+    //  Engines     the power pips for Navigation, Weapons, Systems and Shields (- / +), and repairs to damaged stations
     public class StationScreen : MonoBehaviour
     {
         public static StationScreen Instance { get; private set; }
@@ -42,11 +42,11 @@ namespace Rambler.Crew.Battle
         [Header("Engines")]
         [SerializeField] GameObject enginesPage;
         [SerializeField] TextMeshProUGUI powerText;
-        [Tooltip("Navigation, Weapons, Systems: a label, four pips, minus and plus each.")]
-        [SerializeField] TextMeshProUGUI[] powerLabels = new TextMeshProUGUI[3];
-        [SerializeField] Image[] pipImages = new Image[12];
-        [SerializeField] Button[] minusButtons = new Button[3];
-        [SerializeField] Button[] plusButtons = new Button[3];
+        [Tooltip("Navigation, Weapons, Systems, Shields: a label, four pips, minus and plus each.")]
+        [SerializeField] TextMeshProUGUI[] powerLabels = new TextMeshProUGUI[4];
+        [SerializeField] Image[] pipImages = new Image[16];
+        [SerializeField] Button[] minusButtons = new Button[4];
+        [SerializeField] Button[] plusButtons = new Button[4];
         [SerializeField] TextMeshProUGUI repairText;
         [Tooltip("One per station (Navigation, Weapons, Engines, Systems); shown when that station is damaged.")]
         [SerializeField] Button[] repairButtons = new Button[4];
@@ -83,6 +83,10 @@ namespace Rambler.Crew.Battle
                 if (i < minusButtons.Length && minusButtons[i] != null) minusButtons[i].onClick.AddListener(() => { if (Battle != null) Battle.RemovePip(s); Refresh(); });
                 if (i < plusButtons.Length && plusButtons[i] != null) plusButtons[i].onClick.AddListener(() => { if (Battle != null) Battle.AddPip(s); Refresh(); });
             }
+            //The last row is the shields
+            int sr = PowerRows.Length;
+            if (sr < minusButtons.Length && minusButtons[sr] != null) minusButtons[sr].onClick.AddListener(() => { if (Battle != null) Battle.RemoveShieldPip(); Refresh(); });
+            if (sr < plusButtons.Length && plusButtons[sr] != null) plusButtons[sr].onClick.AddListener(() => { if (Battle != null) Battle.AddShieldPip(); Refresh(); });
             for (int i = 0; i < repairButtons.Length; i++)
             {
                 var s = (Station)i;
@@ -193,6 +197,7 @@ namespace Rambler.Crew.Battle
                 if (r < minusButtons.Length && minusButtons[r] != null) minusButtons[r].interactable = canChange && p > 0;
                 if (r < plusButtons.Length && plusButtons[r] != null) plusButtons[r].interactable = canChange && p < b.MaxPips && b.FreePips > 0;
             }
+            DrawShieldRow(b, canChange);
 
             bool any = false;
             for (int i = 0; i < repairButtons.Length; i++)
@@ -205,6 +210,25 @@ namespace Rambler.Crew.Battle
             }
             if (repairBar != null) { repairBar.transform.parent.gameObject.SetActive(b.Repairing.HasValue); repairBar.fillAmount = b.RepairProgress; }
             Set(repairText, !any ? "Nothing damaged." : b.Repairing.HasValue ? "Repairing " + b.Repairing.Value + ": " + Mathf.RoundToInt(b.RepairProgress * 100f) + "%" : "Damaged stations: tap one to repair it.");
+        }
+
+        //Shields: their own row, two pips a layer; the generator runs off Ship Systems
+        void DrawShieldRow(ShipBattle b, bool canChange)
+        {
+            int r = PowerRows.Length;
+            int p = b.ShieldPips;
+            var shieldColour = new Color(0.45f, 0.8f, 1f);
+            if (r < powerLabels.Length)
+                Set(powerLabels[r], "Shields " + b.ShieldLayers + "/" + b.ShieldMax + (b.ShieldWorking ? "" : "  <color=#E64033>down</color>"));
+            for (int k = 0; k < 4; k++)
+            {
+                int idx = r * 4 + k;
+                if (idx >= pipImages.Length || pipImages[idx] == null) continue;
+                pipImages[idx].color = k < p ? shieldColour : pipEmpty;
+                pipImages[idx].gameObject.SetActive(k < b.MaxPips);
+            }
+            if (r < minusButtons.Length && minusButtons[r] != null) minusButtons[r].interactable = canChange && p > 0;
+            if (r < plusButtons.Length && plusButtons[r] != null) plusButtons[r].interactable = canChange && p < b.MaxPips && b.FreePips > 0;
         }
 
         static void Set(TextMeshProUGUI t, string s) { if (t != null) t.text = s; }

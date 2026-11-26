@@ -355,8 +355,9 @@ namespace Rambler.Crew.Battle
                 sb.Append("\nWeapons ").Append(b.EnemyWeaponsDown ? "<color=#59CC73>DOWN</color>" : b.EnemyWeapons + "").Append('\n');
                 sb.Append("Engines ").Append(b.EnemyEnginesDown ? "<color=#59CC73>DOWN</color>" : b.EnemyEngines + "").Append('\n');
                 sb.Append("Bridge ").Append(b.EnemyBridgeDown ? "<color=#59CC73>DOWN</color>" : b.EnemyBridge + "").Append('\n');
+                sb.Append("Shields ").Append(b.EnemyShieldsDown ? "<color=#59CC73>DOWN</color>" : b.EnemyShieldLayers + " / " + b.EnemyShieldMax + " layers").Append('\n');
                 sb.Append("\nArmed with rocket batteries and boarding pods.\n");
-                sb.Append("<color=#999999>Weapons down: no volleys. Engines down: dead in space, no boarders. Bridge down: can't steer or dodge.</color>");
+                sb.Append("<color=#999999>Weapons down: no volleys. Engines down: dead in space, no boarders. Bridge down: can't steer or dodge. Shields stop rockets; missiles go through.</color>");
             }
             else sb.Append("\n<color=#E64033>Not scanned.</color> Only the hull can be hit, and less often.\nScan it to see its rooms and systems.");
             Set(targetInfo, sb.ToString());
@@ -375,6 +376,7 @@ namespace Rambler.Crew.Battle
                 case EnemyTarget.Weapons: return b.EnemyWeaponsDown ? "DOWN" : b.EnemyWeapons + " / " + b.EnemySystemMax;
                 case EnemyTarget.Engines: return b.EnemyEnginesDown ? "DOWN" : b.EnemyEngines + " / " + b.EnemySystemMax;
                 case EnemyTarget.Bridge: return b.EnemyBridgeDown ? "DOWN" : b.EnemyBridge + " / " + b.EnemySystemMax;
+                case EnemyTarget.Shields: return b.EnemyShieldsDown ? "DOWN" : b.EnemyShields + " / " + b.EnemySystemMax;
                 default: return "hull " + b.EnemyHull;
             }
         }
@@ -402,9 +404,12 @@ namespace Rambler.Crew.Battle
                 if (l == null) continue;
                 string why = b.NotReady(l);
                 int pct = Mathf.RoundToInt(b.Chance(l, aimed.system) * 100f);
+                int layers = b.EnemyShieldLayers;
+                string shield = l.kind == WeaponKind.Missile ? (layers > 0 ? "   <color=#59CC73>pierces shields</color>" : "")
+                                                             : layers > 0 ? "   <color=#E64033>" + Mathf.Min(layers, l.salvo) + " stopped by shields</color>" : "";
                 Set(i < optionLabels.Length ? optionLabels[i] : null,
                     "<b>" + l.name.ToUpperInvariant() + "</b>  ×" + l.salvo + "     " + pct + "% to hit" + (l.salvo > 1 ? " each" : "") +
-                    "     " + l.left + " left\n<size=80%>" + (why == null ? "<color=#59CC73>READY: tap to fire</color>" : why) + "</size>");
+                    "     " + l.left + " left\n<size=80%>" + (why == null ? "<color=#59CC73>READY: tap to fire</color>" : why) + shield + "</size>");
                 optionButtons[i].interactable = why == null;
             }
         }

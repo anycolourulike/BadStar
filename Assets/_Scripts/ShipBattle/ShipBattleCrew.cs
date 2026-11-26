@@ -134,7 +134,13 @@ namespace Rambler.Crew.Battle
                 { Station.Navigation, Escaping ? maxPips : 2 },
                 { Station.Systems, breaches.Count > 0 || BoardersAlive > 0 || MedbayPatients() > 0 ? 2 : 1 },
             };
+            //A shield layer when there's the power for it, two on a big reactor
+            int wantShields = Power >= 8 ? 2 * pipsPerLayer : Power >= 5 ? pipsPerLayer : 0;
             foreach (var s in Powered) while (pips[s] > want[s]) pips[s]--;
+            while (shieldPips > wantShields) shieldPips--;
+            //Life support first, then the shields, then the rest
+            if (pips[Station.Systems] < 1 && FreePips > 0) pips[Station.Systems]++;
+            if (!Escaping) while (shieldPips < wantShields && FreePips > 0) shieldPips++;
             var order = Escaping ? new[] { Station.Navigation, Station.Weapons, Station.Systems } : new[] { Station.Weapons, Station.Systems, Station.Navigation };
             foreach (var s in order) while (pips[s] < want[s] && pips[s] < maxPips && FreePips > 0) pips[s]++;
             //Anything left over goes where it helps most (not to guns nobody is firing)

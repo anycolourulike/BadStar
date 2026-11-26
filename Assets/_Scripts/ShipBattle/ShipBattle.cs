@@ -11,7 +11,7 @@ using Rambler.UI;
 namespace Rambler.Crew.Battle
 {
     public enum BattleState { Fighting, Won, Escaped, Lost }
-    public enum EnemyTarget { Hull, Weapons, Engines, Bridge }
+    public enum EnemyTarget { Hull, Weapons, Engines, Bridge, Shields }
 
     //A fight aboard the player's ship against an enemy ship outside. One per battle scene, next to the ShipAI
     //(which is handed to the player so the ship map works on your own ship).
@@ -155,9 +155,10 @@ namespace Rambler.Crew.Battle
                 firepower = fallbackFirepower;
             }
 
-            //Power starts spread evenly, weapons first
+            //Power starts spread evenly, weapons first, after a shield layer if there's enough (ShipBattleShields)
             foreach (var s in Powered) pips[s] = 0;
-            for (int i = 0; i < Power; i++)
+            shieldPips = Power >= 5 ? pipsPerLayer : 0;
+            for (int i = 0; i < Power - shieldPips; i++)
             {
                 var s = Powered[i % Powered.Length];
                 if (pips[s] < maxPips) pips[s]++;
@@ -168,6 +169,7 @@ namespace Rambler.Crew.Battle
             volleyTimer = volleySeconds;
             boardingTimer = firstBoarding;
             WeaponsStart();
+            ShieldsStart();
             Log("The " + enemyName + " is closing in. Man the stations!");
         }
 
@@ -186,6 +188,7 @@ namespace Rambler.Crew.Battle
 
             //Weapons, scanning and the tactical map (ShipBattleWeapons)
             WeaponsUpdate(dt);
+            ShieldsUpdate(dt);
             if (State != BattleState.Fighting) return;
 
             //Engines: repairs
@@ -284,7 +287,7 @@ namespace Rambler.Crew.Battle
         //A damaged engine room gives half the power
         public int AvailablePower => damaged.Contains(Station.Engines) ? Power / 2 : Power;
         public int Pips(Station s) => pips.TryGetValue(s, out int p) ? p : 0;
-        public int FreePips { get { int used = 0; foreach (var p in pips.Values) used += p; return AvailablePower - used; } }
+        public int FreePips { get { int used = shieldPips; foreach (var p in pips.Values) used += p; return AvailablePower - used; } }
 
         //Power can only be moved by whoever is at the Engines station
         public bool CanChangePower => IsManned(Station.Engines) && State == BattleState.Fighting;
@@ -305,7 +308,7 @@ namespace Rambler.Crew.Battle
             return true;
         }
 
-        //When power drops (engines hit), pips come out of Navigation, Weapons and Systems in turn, but Systems keeps
+        //When power drops (engines hit), pips come out of Shields, Navigation, Weapons and Systems in turn, but Systems keeps
         //its last pip (life support) until there's nothing else to take. When power comes back and Systems has none,
         //it gets one back on its own, so the air doesn't wait for someone to man Engines.
         void ClampPower()
@@ -314,6 +317,7 @@ namespace Rambler.Crew.Battle
             int i = 0;
             while (FreePips < 0 && i < 20)
             {
+                if (shieldPips > 0) shieldPips--;
                 foreach (var s in order) if (FreePips < 0 && pips[s] > (s == Station.Systems ? 1 : 0)) pips[s]--;
                 i++;
             }
@@ -350,7 +354,7 @@ namespace Rambler.Crew.Battle
                 int dmg = UnityEngine.Random.Range(shotDamage.x, shotDamage.y + 1);
                 if (SpawnIncoming(dmg)) { } //Flies across the map and lands later
                 else if (UnityEngine.Random.value < Evade) Log("Evaded a shot!");
-                else TakeHit(dmg);
+                else if (!OurShieldsStop()) TakeHit(dmg);
                 yield return new WaitForSeconds(0.4f);
             }
         }

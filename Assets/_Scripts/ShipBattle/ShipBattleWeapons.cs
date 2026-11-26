@@ -56,6 +56,8 @@ namespace Rambler.Crew.Battle
         {
             public bool incoming;
             public bool hit;
+            //Goes through shields (missiles); rockets are stopped by a layer
+            public bool pierce;
             public int damage;
             public EnemyTarget target;
         }
@@ -78,7 +80,8 @@ namespace Rambler.Crew.Battle
         [SerializeField] EnemyRoom[] enemyRooms =
         {
             new EnemyRoom { name = "Engines", system = EnemyTarget.Engines, area = new Rect(0f, 0.15f, 0.24f, 0.7f), minSkill = 3 },
-            new EnemyRoom { name = "Hold", system = EnemyTarget.Hull, area = new Rect(0.24f, 0.1f, 0.32f, 0.8f), minSkill = 0 },
+            new EnemyRoom { name = "Hold", system = EnemyTarget.Hull, area = new Rect(0.24f, 0.1f, 0.16f, 0.8f), minSkill = 0 },
+            new EnemyRoom { name = "Shields", system = EnemyTarget.Shields, area = new Rect(0.4f, 0.1f, 0.16f, 0.8f), minSkill = 4 },
             new EnemyRoom { name = "Weapons", system = EnemyTarget.Weapons, area = new Rect(0.56f, 0.1f, 0.22f, 0.8f), minSkill = 3 },
             new EnemyRoom { name = "Bridge", system = EnemyTarget.Bridge, area = new Rect(0.78f, 0.2f, 0.22f, 0.6f), minSkill = 6 },
         };
@@ -197,7 +200,7 @@ namespace Rambler.Crew.Battle
             var prefab = space != null ? (l.kind == WeaponKind.Missile ? space.missilePrefab : space.rocketPrefab) : null;
             for (int i = 0; i < count; i++)
             {
-                var shot = new Shot { hit = Random.value < chance, damage = dmg, target = target };
+                var shot = new Shot { hit = Random.value < chance, damage = dmg, target = target, pierce = l.kind == WeaponKind.Missile };
                 if (!Launch(prefab, PlayerShip, EnemyShip, shot, i)) Resolve(shot); //No map: lands at once
             }
             string what = target == EnemyTarget.Hull ? "hull" : target.ToString().ToLowerInvariant();
@@ -257,11 +260,11 @@ namespace Rambler.Crew.Battle
             if (shot.incoming)
             {
                 if (DodgedByEvade(shot)) Log("<color=#59CC73>Dodged!</color> The hard burn slipped a shot that had us.");
-                else if (shot.hit) TakeHit(shot.damage);
+                else if (shot.hit) { if (!OurShieldsStop()) TakeHit(shot.damage); }
                 else Log("Evaded a shot!");
                 return;
             }
-            if (shot.hit) ApplyEnemyDamage(shot.target, shot.damage);
+            if (shot.hit) { if (!EnemyShieldsStop(shot)) ApplyEnemyDamage(shot.target, shot.damage); }
             else Log("Missed the " + enemyName + ".");
         }
 
@@ -322,6 +325,9 @@ namespace Rambler.Crew.Battle
                     EnemyHull -= dmg / 2;
                     if (!EnemyEnginesDown && (EnemyEngines -= dmg) <= 0) { EnemyEngines = 0; enginesDown = systemDownSeconds; Log("The " + enemyName + "'s engines are down: it's dead in space, and no more boarders for now!"); }
                     else Log("Hit the " + enemyName + "'s engines.");
+                    break;
+                case EnemyTarget.Shields:
+                    DamageEnemyShields(dmg);
                     break;
                 case EnemyTarget.Bridge:
                     EnemyHull -= dmg / 2;

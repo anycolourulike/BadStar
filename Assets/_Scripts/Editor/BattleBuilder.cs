@@ -184,27 +184,28 @@ namespace Rambler.EditorTools
             //Engines
             var eng = Page(window, "EnginesPage"); Set(so, "enginesPage", eng.gameObject);
             Set(so, "powerText", Text(eng, "", 32, new Vector2(0, 0), new Vector2(984, 46)));
-            var labels = new TextMeshProUGUI[3]; var pips = new Image[12]; var minus = new Button[3]; var plus = new Button[3];
-            for (int r = 0; r < 3; r++)
+            //Navigation, Weapons, Systems, Shields
+            var labels = new TextMeshProUGUI[4]; var pips = new Image[16]; var minus = new Button[4]; var plus = new Button[4];
+            for (int r = 0; r < 4; r++)
             {
-                float y = -62 - r * 86;
-                labels[r] = Text(eng, "Row", 30, new Vector2(0, y), new Vector2(270, 72));
+                float y = -58 - r * 76;
+                labels[r] = Text(eng, "Row", 30, new Vector2(0, y), new Vector2(270, 68));
                 labels[r].alignment = TextAlignmentOptions.MidlineLeft; labels[r].enableAutoSizing = true; labels[r].fontSizeMax = 30; labels[r].fontSizeMin = 18;
                 for (int k = 0; k < 4; k++)
                 {
                     pips[r * 4 + k] = Img("Pip" + r + k, eng, Hex("1F2B3AFF"));
-                    TopLeft(pips[r * 4 + k], new Vector2(286 + k * 100, y - 10), new Vector2(90, 52));
+                    TopLeft(pips[r * 4 + k], new Vector2(286 + k * 100, y - 9), new Vector2(90, 50));
                 }
-                minus[r] = Btn("Minus" + r, eng, TileCol, "−", 48, new Vector2(700, y), new Vector2(120, 72), out _);
-                plus[r] = Btn("Plus" + r, eng, Orange, "+", 48, new Vector2(836, y), new Vector2(120, 72), out _);
+                minus[r] = Btn("Minus" + r, eng, TileCol, "−", 48, new Vector2(700, y), new Vector2(120, 68), out _);
+                plus[r] = Btn("Plus" + r, eng, Orange, "+", 48, new Vector2(836, y), new Vector2(120, 68), out _);
             }
             SetArray(so, "powerLabels", labels); SetArray(so, "pipImages", pips);
             SetArray(so, "minusButtons", minus); SetArray(so, "plusButtons", plus);
-            Set(so, "repairText", Text(eng, "", 28, new Vector2(0, -324), new Vector2(984, 44)));
+            Set(so, "repairText", Text(eng, "", 28, new Vector2(0, -362), new Vector2(984, 44)));
             var repairs = new Button[4];
-            for (int i = 0; i < 4; i++) repairs[i] = Btn("Repair" + i, eng, TileCol, ((Station)i).ToString(), 30, new Vector2(i * 246, -374), new Vector2(232, 80), out _);
+            for (int i = 0; i < 4; i++) repairs[i] = Btn("Repair" + i, eng, TileCol, ((Station)i).ToString(), 30, new Vector2(i * 246, -408), new Vector2(232, 80), out _);
             SetArray(so, "repairButtons", repairs);
-            Set(so, "repairBar", FillBar(eng, new Vector2(0, -470), new Vector2(984, 26), Orange, false));
+            Set(so, "repairBar", FillBar(eng, new Vector2(0, -500), new Vector2(984, 26), Orange, false));
             eng.gameObject.SetActive(false);
 
             so.ApplyModifiedPropertiesWithoutUndo();
