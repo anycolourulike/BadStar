@@ -12,23 +12,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67f27afa0000ed748881fc8b442f5296, type: 3}
   m_Name: Shearwater
   m_EditorClassIdentifier: 
-  itemID: a4bf0c5f-b6bb-415c-a1d6-62fed1d2f7b3
+  itemID: 095a59f5-5576-49fa-bec1-a4899a192e9c
   displayName: Shearwater
-  description: Light Titan cargo hauler with a rear ramp. Short hops, a small crew,
-    cheap to run.
+  description: 'Armed freighter built for a fight: a room for every system, an armoury,
+    a medbay and a hold boarders love to raid.'
   icon: {fileID: 0}
-  price: 8000
-  prefab: {fileID: 6779870227566588106, guid: f2a7346fa5fd4114eb6f43293bf5661a, type: 3}
-  modelRotation: {x: 90, y: 0, z: 0}
+  price: 30000
+  prefab: {fileID: 7720021245029453815, guid: 369e06b809ecbc443a3e22fddcfc7a13, type: 3}
+  modelRotation: {x: 0, y: 0, z: 0}
   baseStats:
-    crewSeats: 2
-    range: 1
-    hull: 400
-    power: 5
-    firepower: 40
+    crewSeats: 4
+    range: 2
+    hull: 700
+    power: 8
+    firepower: 70
     cargoPay: 0
     cargoTime: 0
-  cargoRunPay: 300
-  cargoRunMinutes: 20
+  cargoRunPay: 500
+  cargoRunMinutes: 30
   cargoRunWear: 0.1
-  repairCostPerPoint: 2
+  repairCostPerPoint: 3

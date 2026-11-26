@@ -380,7 +380,7 @@ namespace Rambler.EditorTools
         // Starter content
         // =====================================================================
 
-        //Two ships (Shearwater, Fastnet), twelve ship parts (two per slot) and four businesses.
+        //Three ships (Puffin, Fastnet, Shearwater), twelve ship parts (two per slot) and four businesses.
         //Existing assets are left alone.
         [MenuItem("Tools/Company/Create Fleet Content")]
         static void CreateFleetContent()
@@ -388,10 +388,12 @@ namespace Rambler.EditorTools
             string root = CompanyEditor.Root;
             CompanyEditor.Folder(root + "/Ships"); CompanyEditor.Folder(root + "/Ship Parts"); CompanyEditor.Folder(root + "/Businesses");
 
-            Ship("Shearwater", "Light Titan cargo hauler with a rear ramp. Short hops, a small crew, cheap to run.", "Assets/Shearwater/Shearwater.prefab",
+            Ship("Puffin", "Light Titan cargo hauler with a rear ramp. Short hops, a small crew, cheap to run.", "Assets/Puffin/Puffin.prefab",
                 8000, 2, 1, 400, 300, 20f, 2, new Vector3(90, 0, 0));
             Ship("Fastnet", "Big ore freighter: six fans, three hoppers and room for the whole squad. Long, well-paid runs.", "Assets/Fastnet/Fastnet.prefab",
                 22000, 4, 2, 900, 900, 45f, 3, Vector3.zero);
+            Ship("Shearwater", "Armed freighter built for a fight: a room for every system, an armoury, a medbay and a hold boarders love to raid.", ShearwaterBuilder.PrefabPath,
+                30000, 4, 2, 700, 500, 30f, 3, Vector3.zero);
 
             Part("Tuned Thrusters", "Re-jetted fans for a little more reach.", ShipSlot.Engine, 1500, range: 1, cargoTime: -10);
             Part("Long-haul Drive", "A bigger core and deeper tanks.", ShipSlot.Engine, 3500, range: 2, cargoTime: -25);
@@ -412,7 +414,8 @@ namespace Rambler.EditorTools
             Business("Security Firm", "Guards for hire. Pays well every time you're out on a job.", 12000, 200, 120, 12f, 4000);
 
             //Ship battle numbers (power pips, firepower), also filled in on assets made before they existed
-            PowerAndFire("Ships/Shearwater", "baseStats", 5, 40);
+            PowerAndFire("Ships/Puffin", "baseStats", 5, 40);
+            PowerAndFire("Ships/Shearwater", "baseStats", 8, 70);
             PowerAndFire("Ships/Fastnet", "baseStats", 7, 60);
             PowerAndFire("Ship Parts/Tuned Thrusters", "stats", 1, 0);
             PowerAndFire("Ship Parts/Long-haul Drive", "stats", 2, 0);
@@ -429,7 +432,9 @@ namespace Rambler.EditorTools
             if (a == null) return;
             var so = new SerializedObject(a);
             var st = so.FindProperty(field);
-            if (st.FindPropertyRelative("power").intValue != 0 || st.FindPropertyRelative("firepower").intValue != 0) return;
+            //Only fills in values never set: zero (old parts) or the ShipDefinition defaults of 5 power / 40 firepower
+            int p0 = st.FindPropertyRelative("power").intValue, f0 = st.FindPropertyRelative("firepower").intValue;
+            if (!(p0 == 0 && f0 == 0) && !(p0 == 5 && f0 == 40)) return;
             st.FindPropertyRelative("power").intValue = power;
             st.FindPropertyRelative("firepower").intValue = firepower;
             so.ApplyModifiedPropertiesWithoutUndo();
@@ -489,7 +494,7 @@ namespace Rambler.EditorTools
         // The Shipyard scene
         // =====================================================================
 
-        //A landing field with the Shearwater and Fastnet parked, a Shipyard office, a Broker office and a Home
+        //A landing field with the Puffin and Fastnet parked, a Shipyard office, a Broker office and a Home
         //Terminal. The player rig (PlayerCore, cameras, Rambler) is set up the way the Sandbox scene has it: the
         //Sandbox is opened alongside (not saved) and its scene links are copied across.
         [MenuItem("Tools/Company/Build Shipyard Scene")]
@@ -553,7 +558,7 @@ namespace Rambler.EditorTools
 
             var env = new GameObject("SY_Environment");
             Box("Ground", env.transform, new Vector3(0, -0.5f, 10), new Vector3(150, 1, 130), ground);
-            //Pad A: Shearwater. Pad B: Fastnet.
+            //Pad A: Puffin. Pad B: Fastnet.
             PadWithMarkings("PadA", env.transform, new Vector3(-22, 0, 30), new Vector2(26, 28), pad, stripe);
             PadWithMarkings("PadB", env.transform, new Vector3(28, 0, 34), new Vector2(34, 46), pad, stripe);
             //Offices along the south edge of the apron, doors facing north
@@ -570,14 +575,14 @@ namespace Rambler.EditorTools
             Place(HomeTerminalPath, new Vector3(homeOffice.x, 0, homeOffice.z + 4.2f), env.transform);
 
             //Parked ships (scenery)
-            var shearwater = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Shearwater/Shearwater.prefab");
-            if (shearwater != null)
+            var puffin = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Puffin/Puffin.prefab");
+            if (puffin != null)
             {
-                var sw = (GameObject)PrefabUtility.InstantiatePrefab(shearwater, scene);
-                sw.name = "Shearwater_Parked";
+                var sw = (GameObject)PrefabUtility.InstantiatePrefab(puffin, scene);
+                sw.name = "Puffin_Parked";
                 sw.transform.SetParent(env.transform, true);
                 sw.transform.position = new Vector3(-22, 0.3f, 30);
-                sw.transform.rotation = Quaternion.Euler(0, 200, 0) * Quaternion.Euler(90, 0, 0) * shearwater.transform.rotation; //Exported Z-up
+                sw.transform.rotation = Quaternion.Euler(0, 200, 0) * Quaternion.Euler(90, 0, 0) * puffin.transform.rotation; //Exported Z-up
                 SitOnPad(sw, 0.3f);
             }
             var fastnet = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Fastnet/Fastnet.prefab");

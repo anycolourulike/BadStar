@@ -23,7 +23,6 @@ namespace Rambler.EditorTools
         const string ScenePath = SceneFolder + "/ShipBattle.unity";
         const string ShipyardScenePath = "Assets/_Scenes/Shipyard/Shipyard.unity";
         const string TemplateScenePath = "Assets/Sandbox/Sandbox.unity";
-        const string ShearwaterPath = "Assets/Shearwater/Shearwater.prefab";
         const string FastnetPath = "Assets/Fastnet/Fastnet.prefab";
         static readonly string[] BoarderPaths = { "Assets/_Prefabs/Characters/Miners/Miner1.prefab", "Assets/_Prefabs/Characters/Humans/Security/AtlasMK3.prefab" };
 
@@ -322,8 +321,7 @@ namespace Rambler.EditorTools
         [MenuItem("Tools/Company/Build Ship Battle Scene")]
         static void BuildSceneMenu() => BuildScene(true);
 
-        //Ship coordinates: the Shearwater sits at the origin stood upright (+90 X), so world x = Blender x,
-        //world y = Blender z (floor 1.4), world z = Blender y (nose +z, ramp -z).
+        //Ship coordinates: the Shearwater's floor is at y 0, centred on the origin, nose +z.
         static void BuildScene(bool ask)
         {
             if (SceneManager.GetSceneByPath(ScenePath).isLoaded) { Debug.LogWarning("[Company] Open another scene before rebuilding the ship battle."); return; }
@@ -389,16 +387,14 @@ namespace Rambler.EditorTools
             p.transform.SetParent(backdrop, false); p.transform.localPosition = new Vector3(-70, -50, 60); p.transform.localScale = Vector3.one * 45f;
             p.GetComponent<Renderer>().sharedMaterial = planet; Object.DestroyImmediate(p.GetComponent<Collider>());
 
-            //Your ship
-            var shipPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ShearwaterPath);
-            //An upright parent: a NavMeshSurface bakes in its own object's frame, and the model's root is turned 90° X
+            //Your ship: the Shearwater interior (Tools > Company > Build Shearwater Interior), floor at y 0, centred on the origin
+            var interior = AssetDatabase.LoadAssetAtPath<GameObject>(ShearwaterBuilder.PrefabPath);
+            if (interior == null) interior = ShearwaterBuilder.Build();
             var shipRoot = new GameObject("SB_Ship");
-            var ship = (GameObject)PrefabUtility.InstantiatePrefab(shipPrefab, scene);
+            var ship = (GameObject)PrefabUtility.InstantiatePrefab(interior, scene);
             ship.name = "Shearwater";
             ship.transform.SetParent(shipRoot.transform, false);
-            ship.transform.position = Vector3.zero;
-            ship.transform.rotation = Quaternion.Euler(90, 0, 0) * shipPrefab.transform.rotation;
-            RaiseRamp(ship);
+            ship.transform.localPosition = new Vector3(0, 0, -14.5f);
 
             //The enemy, hanging off the starboard side (scenery)
             var fastnet = AssetDatabase.LoadAssetAtPath<GameObject>(FastnetPath);
@@ -406,39 +402,29 @@ namespace Rambler.EditorTools
             {
                 var enemy = (GameObject)PrefabUtility.InstantiatePrefab(fastnet, scene);
                 enemy.name = "Raider (scenery)";
-                enemy.transform.position = new Vector3(40, -8, 18);
+                enemy.transform.position = new Vector3(40, -8, 10);
                 enemy.transform.rotation = Quaternion.Euler(0, -30, 0) * fastnet.transform.rotation;
                 foreach (var c in enemy.GetComponentsInChildren<Collider>()) c.enabled = false;
             }
 
-            //Rooms and doors
-            var rooms = new GameObject("SB_Rooms").transform;
-            var hold = Room(rooms, "Hold", new Vector3(0, 2.9f, -2.3f), new Vector3(5.2f, 3f, 12.6f));
-            var crew = Room(rooms, "Crew Quarters", new Vector3(0, 2.9f, 5.55f), new Vector3(5.2f, 3f, 3.1f));
-            var cockpit = Room(rooms, "Cockpit", new Vector3(0, 2.9f, 9.6f), new Vector3(4.4f, 3f, 5f));
-            var bulkhead = SlidingDoor(rooms, "Bulkhead Door", new Vector3(0, 2.6f, 4.03f), new Vector3(2.0f, 2.4f, 1.0f), ship,
-                new[] { "SW_DoorHoldL", "SW_DoorHoldR" }, new[] { new Vector3(-0.9f, 0, 0), new Vector3(0.9f, 0, 0) });
-            var crewDoor = SlidingDoor(rooms, "Crew Door", new Vector3(-3.32f, 2.6f, 5.6f), new Vector3(1.2f, 2.4f, 1.4f), ship,
-                new[] { "SW_DoorCrew" }, new[] { new Vector3(0, 0, 1.25f) });
-            LinkDoors(hold, bulkhead);
-            LinkDoors(crew, bulkhead, crewDoor);
-
-            //Boarders cut in at the back of the hold
-            foreach (var pos in new[] { new Vector3(0, 1.45f, -7.6f), new Vector3(-1.5f, 1.45f, -8.0f), new Vector3(1.0f, 1.45f, -8.0f) })
+            //Interior lights, one per room
+            foreach (var room in ship.GetComponentsInChildren<ShipRoom>())
             {
-                var sp = new GameObject("Boarding Point").AddComponent<ShipSpawnPoint>();
-                sp.transform.SetParent(rooms, false);
-                sp.transform.position = pos;
-                sp.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+                var l = new GameObject("Light " + room.roomName).AddComponent<Light>();
+                l.transform.SetParent(shipRoot.transform, false);
+                l.transform.position = room.transform.position + Vector3.up * 1.0f;
+                l.type = LightType.Point; l.range = 9f; l.intensity = 1.6f; l.color = new Color(0.85f, 0.92f, 1f);
             }
 
-            //Stations: Navigation and Weapons at the two cockpit seats, Systems in the crew quarters, Engines in the hold
+            //Stations at the Shearwater's anchors
             var stations = new GameObject("SB_Stations").transform;
-            //(the cockpit deck is 0.6 m up; the two consoles sit just behind the seats, their crew stand facing the nose)
-            PlaceStation(stations, Station.Navigation, new Vector3(-1.1f, 2.0f, 8.5f), 180f);
-            PlaceStation(stations, Station.Weapons, new Vector3(1.1f, 2.0f, 8.5f), 180f);
-            PlaceStation(stations, Station.Systems, new Vector3(2.0f, 1.4f, 5.6f), -90f);
-            PlaceStation(stations, Station.Engines, new Vector3(-2.3f, 1.4f, -5.0f), 90f);
+            foreach (Station s in System.Enum.GetValues(typeof(Station)))
+            {
+                var anchor = ship.transform.Find("Station Anchors/" + s);
+                if (anchor != null) PlaceStation(stations, s, anchor.position, anchor.eulerAngles.y);
+            }
+            Vector3 playerStart = Anchor(ship, "Player Start", new Vector3(0, 0, 3.5f));
+            Vector3 squadStart = Anchor(ship, "Squad Start", new Vector3(0, 0, 0.5f));
 
             //The ship's brain (handed to the player at the start) and the battle
             var brain = new GameObject("SB_Battle");
@@ -466,21 +452,20 @@ namespace Rambler.EditorTools
             var player = FleetBuilder.Copy(playerSrc, scene, "Rambler", map);
             foreach (var pair in new[] { (coreSrc, core), (camsSrc, cams), (playerSrc, player) })
                 FleetBuilder.CopyLinks(pair.Item1, pair.Item2, map);
-            FleetBuilder.PlaceInstance(player, new Vector3(0, 1.45f, 5.4f), Quaternion.identity);
+            FleetBuilder.PlaceInstance(player, playerStart, Quaternion.identity);
             if (core != null) core.transform.position = Vector3.zero;
             if (cams != null) cams.transform.position = Vector3.zero;
             FleetBuilder.TrimPlayers(core);
 
             var deployer = new GameObject("SquadDeployer").AddComponent<SquadDeployer>();
-            deployer.transform.position = new Vector3(0, 1.45f, 1.0f);
+            deployer.transform.position = squadStart;
             var dso = new SerializedObject(deployer);
             dso.FindProperty("deployOnStart").boolValue = true;
             dso.FindProperty("spacing").floatValue = 1.1f;
             dso.ApplyModifiedPropertiesWithoutUndo();
 
             //NavMesh over the ship
-            var zones = ship.transform.Find("CutawayZones");
-            if (zones != null) zones.gameObject.AddComponent<Unity.AI.Navigation.NavMeshModifier>().ignoreFromBuild = true;
+            //(room air volumes and door triggers are triggers, which the bake ignores)
             var surface = shipRoot.AddComponent<Unity.AI.Navigation.NavMeshSurface>();
             surface.collectObjects = Unity.AI.Navigation.CollectObjects.Children;
             surface.BuildNavMesh();
@@ -511,6 +496,12 @@ namespace Rambler.EditorTools
             }
             ramp.SetPositionAndRotation(startPos, startRot);
             ramp.RotateAround(hinge, Vector3.right, best);
+        }
+
+        static Vector3 Anchor(GameObject ship, string name, Vector3 fallback)
+        {
+            var t = ship.transform.Find("Station Anchors/" + name);
+            return t != null ? t.position : fallback;
         }
 
         static ShipRoom Room(Transform parent, string name, Vector3 centre, Vector3 size)
@@ -577,7 +568,7 @@ namespace Rambler.EditorTools
 
         // ---------- Shipyard: the Launch terminal ----------
 
-        //Puts a LAUNCH terminal by the Shearwater's pad in the open Shipyard scene
+        //Puts a LAUNCH terminal by the first pad in the open Shipyard scene
         [MenuItem("Tools/Company/Place Launch Terminal")]
         static void PlaceLaunch()
         {
