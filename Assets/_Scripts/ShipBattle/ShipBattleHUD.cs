@@ -41,7 +41,8 @@ namespace Rambler.Crew.Battle
             var b = ShipBattle.Instance;
             //Out of the way while the ship map (the Systems station) is up, unless the battle is over
             if (map == null) map = FindObjectOfType<Rambler.UI.ShipMapPanel>(true);
-            bool screenUp = (map != null && map.IsOpen) || (SystemsScreen.Instance != null && SystemsScreen.Instance.IsOpen);
+            bool screenUp = (map != null && map.IsOpen) || (SystemsScreen.Instance != null && SystemsScreen.Instance.IsOpen) ||
+                            (WeaponsScreen.Instance != null && WeaponsScreen.Instance.IsOpen);
             bool show = b != null && (!screenUp || b.State != BattleState.Fighting);
             if (root != null && root.activeSelf != show) root.SetActive(show);
             if (b == null) return;
@@ -49,7 +50,8 @@ namespace Rambler.Crew.Battle
             if (timer < 0.1f) return;
             timer = 0f;
 
-            Set(shipText, b.ShipName.ToUpperInvariant() + "   " + b.Hull + " / " + b.MaxHull);
+            Set(shipText, b.ShipName.ToUpperInvariant() + "   " + b.Hull + " / " + b.MaxHull +
+                          (b.HasTacticalMap ? "   <size=80%>fuel " + Mathf.RoundToInt(b.Fuel / Mathf.Max(1f, b.MaxFuel) * 100f) + "%</size>" : ""));
             if (hullBar != null) hullBar.fillAmount = (float)b.Hull / Mathf.Max(1, b.MaxHull);
             Set(enemyText, b.EnemyName.ToUpperInvariant() + "   " + b.EnemyHull + " / " + b.EnemyMaxHull);
             if (enemyHullBar != null) enemyHullBar.fillAmount = (float)b.EnemyHull / Mathf.Max(1, b.EnemyMaxHull);

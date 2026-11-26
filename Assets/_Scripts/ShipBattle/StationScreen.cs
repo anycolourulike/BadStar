@@ -174,7 +174,8 @@ namespace Rambler.Crew.Battle
         void DrawEngines(ShipBattle b)
         {
             bool canChange = b.CanChangePower;
-            Set(powerText, "Power <b>" + b.FreePips + "</b> free of " + b.AvailablePower + (b.IsDamaged(Station.Engines) ? "  <color=#E64033>(halved: engines damaged)</color>" : ""));
+            Set(powerText, "Power <b>" + b.FreePips + "</b> free of " + b.AvailablePower + (b.IsDamaged(Station.Engines) ? "  <color=#E64033>(halved: engines damaged)</color>" : "") +
+                           (b.HasTacticalMap ? "     Fuel <b>" + Mathf.RoundToInt(b.Fuel / Mathf.Max(1f, b.MaxFuel) * 100f) + "%</b> (a good engineer makes it last)" : ""));
             for (int r = 0; r < PowerRows.Length; r++)
             {
                 var s = PowerRows[r];

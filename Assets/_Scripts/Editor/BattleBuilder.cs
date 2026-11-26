@@ -44,6 +44,7 @@ namespace Rambler.EditorTools
                 BuildBattleHUD(hud);
                 BuildStationScreen(hud);
                 BuildSystemsScreen(hud);
+                TacticalBuilder.BuildWeaponsScreen(hud);
                 PrefabUtility.SaveAsPrefabAsset(root, PlayerCorePath);
             }
             finally { PrefabUtility.UnloadPrefabContents(root); }
@@ -555,6 +556,9 @@ namespace Rambler.EditorTools
                 if (!AssetDatabase.IsValidFolder(navFolder)) AssetDatabase.CreateFolder(SceneFolder, "ShipBattle");
                 AssetDatabase.CreateAsset(surface.navMeshData, navFolder + "/NavMesh-Shearwater.asset");
             }
+
+            //The ship-to-ship layer, far below: the tactical map the Weapons screen shows
+            TacticalBuilder.BuildSpace();
         }
 
         //The ramp comes in lowered (parked); swing it up about its hinge until it stands closed

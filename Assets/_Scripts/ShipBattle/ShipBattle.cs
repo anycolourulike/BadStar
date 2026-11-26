@@ -11,7 +11,7 @@ using Rambler.UI;
 namespace Rambler.Crew.Battle
 {
     public enum BattleState { Fighting, Won, Escaped, Lost }
-    public enum EnemyTarget { Hull, Weapons, Engines }
+    public enum EnemyTarget { Hull, Weapons, Engines, Bridge }
 
     //A fight aboard the player's ship against an enemy ship outside. One per battle scene, next to the ShipAI
     //(which is handed to the player so the ship map works on your own ship).
@@ -92,7 +92,8 @@ namespace Rambler.Crew.Battle
         public int Hull { get; private set; }
         public int Power { get; private set; }
         public int Firepower => firepower;
-        public float WeaponCharge { get; private set; }
+        //The most loaded launcher (the old station screen and HUD use it)
+        public float WeaponCharge { get { float c = 0f; foreach (var l in launchers) if (l.left > 0) c = Mathf.Max(c, l.charge); return c; } }
         public float EscapeCharge { get; private set; }
         public bool Escaping { get; private set; }
         public EnemyTarget Target { get; private set; } = EnemyTarget.Hull;
@@ -166,6 +167,7 @@ namespace Rambler.Crew.Battle
             EnemyWeapons = EnemyEngines = enemySystemHealth;
             volleyTimer = volleySeconds;
             boardingTimer = firstBoarding;
+            WeaponsStart();
             Log("The " + enemyName + " is closing in. Man the stations!");
         }
 
@@ -182,9 +184,9 @@ namespace Rambler.Crew.Battle
                 if (EscapeCharge >= 1f) { End(BattleState.Escaped); return; }
             }
 
-            //Weapons: charge, then the gunner fires at the chosen target
-            if (IsManned(Station.Weapons)) WeaponCharge = Mathf.Min(1f, WeaponCharge + Effect(Station.Weapons) * dt / reloadSeconds);
-            if (WeaponCharge >= 1f && IsManned(Station.Weapons) && Effect(Station.Weapons) > 0f) Fire();
+            //Weapons, scanning and the tactical map (ShipBattleWeapons)
+            WeaponsUpdate(dt);
+            if (State != BattleState.Fighting) return;
 
             //Engines: repairs
             if (Repairing.HasValue)
@@ -256,7 +258,9 @@ namespace Rambler.Crew.Battle
             return crew * Pips(s) / 2f;
         }
 
-        public float Evade => Mathf.Min(maxEvade, evadePerEffect * Effect(Station.Navigation)) * (Escaping ? 0.5f : 1f);
+        //On the tactical map, dodging comes from how fast the ship is actually going
+        public float Evade => (HasTacticalMap ? maxEvade * Mathf.Clamp01(space.playerShip.SpeedShare * 1.1f)
+                                              : Mathf.Min(maxEvade, evadePerEffect * Effect(Station.Navigation))) * (Escaping ? 0.5f : 1f);
         public float ReloadTime => Effect(Station.Weapons) > 0f ? reloadSeconds / Effect(Station.Weapons) : Mathf.Infinity;
         //Breaches patch themselves at half speed even with nobody on Systems
         float BreachPatchRate => Mathf.Max(0.5f, Effect(Station.Systems));
@@ -339,37 +343,14 @@ namespace Rambler.Crew.Battle
 
         // ---------- Combat ----------
 
-        void Fire()
-        {
-            WeaponCharge = 0f;
-            if (UnityEngine.Random.value < enemyEvade) { Log("Our shot misses the " + enemyName + "."); return; }
-            int dmg = firepower;
-            switch (Target)
-            {
-                case EnemyTarget.Hull:
-                    EnemyHull -= dmg;
-                    Log("Hit the " + enemyName + "'s hull for " + dmg + ".");
-                    break;
-                case EnemyTarget.Weapons:
-                    EnemyHull -= dmg / 2;
-                    if (!EnemyWeaponsDown && (EnemyWeapons -= dmg) <= 0) { EnemyWeapons = 0; weaponsDown = systemDownSeconds; Log("The " + enemyName + "'s weapons are down!"); }
-                    else Log("Hit the " + enemyName + "'s weapons.");
-                    break;
-                case EnemyTarget.Engines:
-                    EnemyHull -= dmg / 2;
-                    if (!EnemyEnginesDown && (EnemyEngines -= dmg) <= 0) { EnemyEngines = 0; enginesDown = systemDownSeconds; Log("The " + enemyName + "'s engines are down: no more boarders for now!"); }
-                    else Log("Hit the " + enemyName + "'s engines.");
-                    break;
-            }
-            if (EnemyHull <= 0) { EnemyHull = 0; End(BattleState.Won); }
-        }
-
         IEnumerator Volley()
         {
             for (int i = 0; i < shotsPerVolley && State == BattleState.Fighting; i++)
             {
-                if (UnityEngine.Random.value < Evade) Log("Evaded a shot!");
-                else TakeHit(UnityEngine.Random.Range(shotDamage.x, shotDamage.y + 1));
+                int dmg = UnityEngine.Random.Range(shotDamage.x, shotDamage.y + 1);
+                if (SpawnIncoming(dmg)) { } //Flies across the map and lands later
+                else if (UnityEngine.Random.value < Evade) Log("Evaded a shot!");
+                else TakeHit(dmg);
                 yield return new WaitForSeconds(0.4f);
             }
         }

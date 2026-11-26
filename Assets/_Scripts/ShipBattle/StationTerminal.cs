@@ -167,17 +167,19 @@ namespace Rambler.Crew.Battle
 
         protected override string DefaultLabel => station == Station.Systems ? "SYSTEMS" : station.ToString().ToUpperInvariant();
         protected override Color PromptColor => ColorFor(station);
-        //Ship Systems opens the live top-down view of the ship (the older room map if that screen isn't built)
-        protected override bool HasScreen => station == Station.Systems ? SystemsScreen.Find() != null || Map != null : StationScreen.Find() != null;
+        //Ship Systems opens the live top-down view of the ship (the older room map if that screen isn't built);
+        //Weapons opens the tactical map when the scene has one; the rest use the station screen
+        bool UsesWeaponsScreen => station == Station.Weapons && WeaponsScreen.Find() != null && ShipBattle.Instance != null && ShipBattle.Instance.HasTacticalMap;
+        protected override bool HasScreen => station == Station.Systems ? SystemsScreen.Find() != null || Map != null : UsesWeaponsScreen || StationScreen.Find() != null;
         protected override bool ScreenOpen => station == Station.Systems
             ? (SystemsScreen.Find() != null ? SystemsScreen.Find().IsOpen : Map != null && Map.IsOpen)
-            : StationScreen.Find() != null && StationScreen.Find().IsOpenFor(this);
+            : UsesWeaponsScreen ? WeaponsScreen.Find().IsOpen : StationScreen.Find() != null && StationScreen.Find().IsOpenFor(this);
 
         protected override void OpenScreen()
         {
-            if (station != Station.Systems) StationScreen.Find().Open(this);
-            else if (SystemsScreen.Find() != null) SystemsScreen.Find().Open();
-            else Map.Open();
+            if (station == Station.Systems) { if (SystemsScreen.Find() != null) SystemsScreen.Find().Open(); else Map.Open(); }
+            else if (UsesWeaponsScreen) WeaponsScreen.Find().Open();
+            else StationScreen.Find().Open(this);
         }
 
         static ShipMapPanel Map => FindObjectOfType<ShipMapPanel>(true);
