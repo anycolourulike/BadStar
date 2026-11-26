@@ -479,6 +479,8 @@ namespace Rambler.Crew
             RestoreFleet(s);
             //Saved mid-mission: whoever was deployed is back in the crew
             foreach (var r in crew) if (r.status == CrewStatus.OnMission) r.status = CrewStatus.Hired;
+            //Skills added to a character's definition since the save (e.g. Pervis's Medic) are topped up
+            foreach (var list in new[] { crew, candidates, former }) foreach (var r in list) r.AddMissingStartingSkills();
             Changed?.Invoke();
         }
 

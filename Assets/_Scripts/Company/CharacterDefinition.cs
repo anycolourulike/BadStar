@@ -23,6 +23,8 @@ namespace Rambler.Crew
         [SerializeField] SkillLevel[] startingSkills = new SkillLevel[0];
         [Tooltip("The first is equipped; the rest go in the inventory.")]
         [SerializeField] Weapon[] startingWeapons = new Weapon[0];
+        [Tooltip("Special talents: each makes them much better at one ship station, or at healing in the medbay.")]
+        [SerializeField] CrewTrait[] traits = new CrewTrait[0];
 
         public GameObject Prefab => prefab;
         public CharacterType Type => type;
@@ -33,5 +35,6 @@ namespace Rambler.Crew
         public SkillLevel[] StartingSkills => startingSkills;
         public Weapon[] StartingWeapons => startingWeapons;
         public Sprite Portrait => Icon;
+        public CrewTrait[] Traits => traits ?? new CrewTrait[0];
     }
 }

@@ -8,8 +8,11 @@ namespace Rambler.Crew.Battle
 
     //One of the four stations aboard the player's ship. Whoever stands at it mans it (the active player first,
     //otherwise any of the squad standing there) and their skill sets how well it works: Piloting for Navigation,
-    //Firearms for Weapons, Engineering for Engines and Ship Systems. Tap the prompt to open the station's screen;
-    //Ship Systems opens the ship map. Prefab: Tools > Company > Build Ship Battle.
+    //Firearms for Weapons, Engineering for Engines and Ship Systems; a matching trait adds to it.
+    //  The active player at a station sets it by hand (tap the prompt for its screen; Ship Systems opens the ship map).
+    //  Anyone else there runs it on their own (ShipBattle's station AI), and gets better with practice.
+    //  An enemy standing at an unmanned station takes it over and uses it against the ship.
+    //Prefab: Tools > Company > Build Ship Battle.
     public class StationTerminal : LocationTerminal
     {
         [SerializeField] Station station = Station.Navigation;
@@ -17,6 +20,75 @@ namespace Rambler.Crew.Battle
         [SerializeField] int defaultSkill = 3;
 
         public Station Station => station;
+
+        //An enemy standing at the station (checked a few times a second)
+        public GameObject Intruder { get; private set; }
+        //Taken over: an enemy is at it and none of the squad is
+        public bool Hijacked => Intruder != null && Operator == null;
+        //Fought over: an enemy and one of the squad are both at it
+        public bool Contested => Intruder != null && Operator != null;
+        //Set by hand: the active player is the one at it
+        public bool PlayerControlled { get { var op = Operator; return op != null && op == ActivePlayer; } }
+
+        Collider area;
+        float scanTimer;
+        static readonly Collider[] hits = new Collider[24];
+
+        protected override void Start()
+        {
+            base.Start();
+            area = GetComponent<Collider>();
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+            if ((scanTimer -= Time.deltaTime) > 0f) return;
+            scanTimer = 0.25f;
+            Intruder = null;
+            if (area == null) return;
+            var b = area.bounds;
+            int n = Physics.OverlapBoxNonAlloc(b.center, b.extents, hits, Quaternion.identity, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                var c = Rambler.Ship.ShipCharacters.Root(hits[i]);
+                if (c == null || Rambler.Ship.ShipCharacters.IsPlayerSide(c) || !Rambler.Ship.ShipCharacters.IsAlive(c)) continue;
+                Intruder = c;
+                break;
+            }
+        }
+
+        public CharacterRecord OperatorRecord
+        {
+            get
+            {
+                var op = Operator;
+                var roster = op != null ? op.GetComponent<RosterMember>() : null;
+                return roster != null ? roster.Record : null;
+            }
+        }
+
+        //The trait that suits this station, if the operator has it
+        public bool OperatorHasStationTrait
+        {
+            get
+            {
+                var r = OperatorRecord;
+                if (r == null) return false;
+                foreach (var t in r.Traits) if (CrewTraits.StationIndex(t) == (int)station) return true;
+                return false;
+            }
+        }
+
+        public SkillDefinition Skill
+        {
+            get
+            {
+                foreach (var skill in CatalogAsset.All<SkillDefinition>())
+                    if (skill.DisplayName == SkillName) return skill;
+                return null;
+            }
+        }
 
         //Who is working the station right now (null = unmanned)
         public GameObject Operator
@@ -58,19 +130,18 @@ namespace Rambler.Crew.Battle
             }
         }
 
-        //The operator's level in this station's skill (0 when unmanned)
+        //The operator's level in this station's skill, plus their trait's bonus (0 when unmanned)
         public int OperatorSkill
         {
             get
             {
                 var op = Operator;
                 if (op == null) return 0;
-                var roster = op.GetComponent<RosterMember>();
-                var record = roster != null ? roster.Record : null;
+                var record = OperatorRecord;
                 if (record == null) return defaultSkill;
-                foreach (var skill in CatalogAsset.All<SkillDefinition>())
-                    if (skill.DisplayName == SkillName) return record.GetSkill(skill);
-                return defaultSkill;
+                var skill = Skill;
+                int level = skill != null ? record.GetSkill(skill) : defaultSkill;
+                return level + (OperatorHasStationTrait ? CrewTraits.StationBonus : 0);
             }
         }
 

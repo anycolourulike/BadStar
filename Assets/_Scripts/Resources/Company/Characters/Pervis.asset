@@ -30,6 +30,11 @@ MonoBehaviour:
     level: 3
   - skill: {fileID: 11400000, guid: 974096d24c7632a418051e53dd1eeba7, type: 2}
     level: 2
+  - skill: {fileID: 11400000, guid: 925ff59343cd12f4e90039aede24cea8, type: 2}
+    level: 5
+  - skill: {fileID: 11400000, guid: fb4a498fd0d48b74dbe3146ce1685a6e, type: 2}
+    level: 2
   startingWeapons:
   - {fileID: 11400000, guid: 6ef1e0076e4170244b5336019c638163, type: 2}
   - {fileID: 11400000, guid: 2c474ed463d99a0499521d62a7de84e7, type: 2}
+  traits: 0200000004000000

@@ -33,3 +33,4 @@ MonoBehaviour:
   startingWeapons:
   - {fileID: 11400000, guid: 7246f3b9edff4f04ca98c9cee1f95b5a, type: 2}
   - {fileID: 11400000, guid: 2c5c155b418e8c540bca75c901bf3e3a, type: 2}
+  traits: 01000000

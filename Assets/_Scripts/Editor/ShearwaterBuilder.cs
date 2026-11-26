@@ -208,8 +208,8 @@ namespace Rambler.EditorTools
                 foreach (float z in new[] { 6.65f, 7.25f, 10.75f, 11.35f })
                     foreach (float x in new[] { 2.4f, 3.5f, 4.6f })
                     {
-                        Prop("CR_StorageCrate_Large_1", sx * x, z, 0, cargo);
-                        if (x < 4f) Prop("CR_StorageCrate_Large_1", sx * x, z, 0, cargo, 0.5f);
+                        Crate(Prop("CR_StorageCrate_Large_1", sx * x, z, 0, cargo));
+                        if (x < 4f) Crate(Prop("CR_StorageCrate_Large_1", sx * x, z, 0, cargo, 0.5f));
                     }
                 Prop("Retro_laboratory_Biohazard_Barrel_2", sx * 6.2f, 6.75f, 0, cargo);
                 Prop("Retro_laboratory_Biohazard_Barrel_2", sx * 6.2f, 11.3f, 0, cargo);
@@ -231,6 +231,9 @@ namespace Rambler.EditorTools
             Prop("CRM_Wall_Fan_01", -4.75f, 2.2f, 90, engine, 1.0f);
             Prop("CRM_Wall_Fan_01", 4.75f, 2.2f, -90, engine, 1.0f);
         }
+
+        //A crate boarders can carry off (ShipBattle's looters)
+        static void Crate(GameObject go) { if (go != null) go.AddComponent<Rambler.Crew.Battle.CargoCrate>(); }
 
         static Transform Group(string name)
         {

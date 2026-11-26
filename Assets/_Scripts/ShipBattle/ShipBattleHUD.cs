@@ -57,7 +57,8 @@ namespace Rambler.Crew.Battle
                             (b.EnemyEnginesDown ? "No boarders coming" : "Boarders in " + Mathf.CeilToInt(b.NextBoarding) + "s") +
                             (boarders > 0 ? "     <color=#E64033>" + boarders + " aboard!</color>" : "") +
                             (b.Escaping ? "     Jump " + Mathf.RoundToInt(b.EscapeCharge * 100f) + "%" : "") +
-                            (b.BreachSummary != null ? "     <color=#4CA6F2>BREACH: " + b.BreachSummary + " (no air)</color>" : ""));
+                            (b.BreachSummary != null ? "     <color=#4CA6F2>BREACH: " + b.BreachSummary + " (no air)</color>" : "") +
+                            (b.CratesLost > 0 ? "     <color=#E64033>Cargo lost: " + b.CratesLost + "</color>" : ""));
 
             for (int i = 0; i < 4; i++)
             {
@@ -65,14 +66,16 @@ namespace Rambler.Crew.Battle
                 var t = b.Terminal(s);
                 string who = t != null ? t.OperatorName : null;
                 bool dmg = b.IsDamaged(s);
+                bool taken = t != null && t.Hijacked;
                 if (i < stationChips.Length && stationChips[i] != null)
                 {
                     var c = StationTerminal.ColorFor(s);
-                    stationChips[i].color = dmg ? new Color(0.5f, 0.12f, 0.1f, 0.95f) : who != null ? new Color(c.r * 0.55f, c.g * 0.55f, c.b * 0.55f, 0.95f) : new Color(0.1f, 0.13f, 0.17f, 0.9f);
+                    stationChips[i].color = taken ? new Color(0.75f, 0.05f, 0.1f, 0.95f) : dmg ? new Color(0.5f, 0.12f, 0.1f, 0.95f) : who != null ? new Color(c.r * 0.55f, c.g * 0.55f, c.b * 0.55f, 0.95f) : new Color(0.1f, 0.13f, 0.17f, 0.9f);
                 }
+                //Who's on it, and whether it's you at the controls or them running it themselves
+                string line = taken ? "TAKEN BY BOARDERS" : dmg ? "DAMAGED" : who == null ? "empty" : who + (t.PlayerControlled ? " (you)" : " (AI)") + (t.Contested ? " FIGHTING" : "");
                 if (i < stationTexts.Length)
-                    Set(stationTexts[i], "<b>" + (s == Station.Systems ? "SYSTEMS" : s.ToString().ToUpperInvariant()) + "</b>  " + Mathf.RoundToInt(b.Effect(s) * 100f) + "%\n" +
-                                         (dmg ? "DAMAGED" : who ?? "empty"));
+                    Set(stationTexts[i], "<b>" + (s == Station.Systems ? "SYSTEMS" : s.ToString().ToUpperInvariant()) + "</b>  " + Mathf.RoundToInt(b.Effect(s) * 100f) + "%\n" + line);
             }
             Set(logText, b.LastLog);
 
@@ -83,11 +86,11 @@ namespace Rambler.Crew.Battle
                 {
                     case BattleState.Won:
                         Set(endTitle, "<color=#59CC73>VICTORY</color>");
-                        Set(endBody, "The " + b.EnemyName + " is destroyed.\nReward: " + b.Reward.ToString("N0") + " credits.\nHull " + b.Hull + " / " + b.MaxHull + ". Repairs at the Shipyard.");
+                        Set(endBody, "The " + b.EnemyName + " is destroyed.\nReward: " + b.Reward.ToString("N0") + " credits." + CargoLine(b) + "\nHull " + b.Hull + " / " + b.MaxHull + ". Repairs at the Shipyard.");
                         break;
                     case BattleState.Escaped:
                         Set(endTitle, "<color=#4CA6F2>ESCAPED</color>");
-                        Set(endBody, "The jump drive fires and the " + b.EnemyName + " is left behind.\nHull " + b.Hull + " / " + b.MaxHull + ".");
+                        Set(endBody, "The jump drive fires and the " + b.EnemyName + " is left behind." + CargoLine(b) + "\nHull " + b.Hull + " / " + b.MaxHull + ".");
                         break;
                     default:
                         Set(endTitle, "<color=#E64033>DEFEAT</color>");
@@ -96,6 +99,8 @@ namespace Rambler.Crew.Battle
                 }
             }
         }
+
+        static string CargoLine(ShipBattle b) => b.CratesLost > 0 ? "\n<color=#E64033>Boarders took " + b.CratesLost + " crate" + (b.CratesLost == 1 ? "" : "s") + " of cargo: -" + b.CargoLost.ToString("N0") + " credits.</color>" : "";
 
         static void Set(TextMeshProUGUI t, string s) { if (t != null) t.text = s; }
     }

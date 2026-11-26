@@ -129,7 +129,7 @@ namespace Rambler.Crew.Battle
             string who = current.OperatorName;
             int pct = Mathf.RoundToInt(b.Effect(s) * 100f);
             Set(operatorText, who != null
-                ? "Manned by <b>" + who + "</b>   ·   " + current.SkillName + " " + current.OperatorSkill + "   ·   Effect " + pct + "%"
+                ? "Manned by <b>" + who + "</b>   ·   " + current.SkillName + " " + current.OperatorSkill + (current.OperatorHasStationTrait ? " (trait +" + CrewTraits.StationBonus + ")" : "") + "   ·   Effect " + pct + "%"
                 : "<color=#E64033>Unmanned</color>   ·   " + (s == Station.Weapons ? "the guns need a gunner" : "running at " + pct + "%"));
             Set(statusText, b.IsDamaged(s) ? "<color=#E64033>DAMAGED: repair it from Engines</color>" : s == Station.Engines ? "" : "Power " + b.Pips(s) + " / " + b.MaxPips);
 

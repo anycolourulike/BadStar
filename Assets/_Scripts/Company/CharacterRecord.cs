@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using Rambler.Ownables;
 
 namespace Rambler.Crew
@@ -26,6 +27,14 @@ namespace Rambler.Crew
         public int level;
     }
 
+    //Practice towards a skill's next level, earned by doing (manning a ship station)
+    [Serializable]
+    public struct SkillPractice
+    {
+        public string skillId;
+        public float seconds;
+    }
+
     //One person's saved state. The definition is the authored asset (prefab, portrait, type); everything that
     //changes in play lives here, so this, not the ScriptableObject, is what the save file stores.
     [Serializable]
@@ -48,6 +57,8 @@ namespace Rambler.Crew
         public List<WeaponItem> weapons;
         //Fitted gear (one per gear slot: armour, implant)
         public List<string> gearIds = new List<string>();
+        //Practice towards each skill's next level (learning by doing)
+        [OptionalField] public List<SkillPractice> practice;
 
         //The guns carried, the first is equipped
         public List<WeaponItem> Weapons
@@ -123,6 +134,45 @@ namespace Rambler.Crew
                 return;
             }
             skills.Add(new SkillRecord { skillId = skill.ItemID, level = level });
+        }
+
+        public CrewTrait[] Traits => Definition != null ? Definition.Traits : new CrewTrait[0];
+        public bool HasTrait(CrewTrait t) => Array.IndexOf(Traits, t) >= 0;
+
+        //Seconds of practice a skill needs to go from this level to the next
+        public static float PracticeNeeded(int level) => 40f * (level + 1);
+
+        public float GetPractice(SkillDefinition skill)
+        {
+            if (skill == null || practice == null) return 0f;
+            foreach (var p in practice) if (p.skillId == skill.ItemID) return p.seconds;
+            return 0f;
+        }
+
+        //Adds practice; returns true when it raises the skill a level
+        public bool Practise(SkillDefinition skill, float seconds)
+        {
+            if (skill == null || seconds <= 0f) return false;
+            int level = GetSkill(skill);
+            if (level >= skill.MaxLevel) return false;
+            if (practice == null) practice = new List<SkillPractice>();
+            int index = practice.FindIndex(p => p.skillId == skill.ItemID);
+            float total = (index >= 0 ? practice[index].seconds : 0f) + seconds;
+            bool levelled = false;
+            if (total >= PracticeNeeded(level)) { total -= PracticeNeeded(level); SetSkill(skill, level + 1); levelled = true; }
+            var entry = new SkillPractice { skillId = skill.ItemID, seconds = total };
+            if (index >= 0) practice[index] = entry; else practice.Add(entry);
+            return levelled;
+        }
+
+        //Gives a named character any starting skill they don't have at all (skills authored after their record was
+        //made); never lowers or changes one they already have
+        public void AddMissingStartingSkills()
+        {
+            var def = Definition;
+            if (def == null || generated) return;
+            foreach (var s in def.StartingSkills)
+                if (s.skill != null && GetSkill(s.skill) == 0 && !skills.Exists(k => k.skillId == s.skill.ItemID)) SetSkill(s.skill, s.level);
         }
 
         //A fresh record for a named character, as they first appear for hire

@@ -240,7 +240,7 @@ namespace Rambler.Crew.UI
 
             detailHeader.SetPortrait(sel.Definition != null ? sel.Definition.Portrait : null, sel.displayName);
             CrewUIItem.SetText(detailHeader.title, sel.displayName);
-            CrewUIItem.SetText(detailHeader.body, StatusText(sel) + "   ·   XP " + Mathf.RoundToInt(sel.experience) + "   ·   Missions " + sel.missionsServed + "   ·   Wage " + sel.wage);
+            CrewUIItem.SetText(detailHeader.body, StatusText(sel) + "   ·   XP " + Mathf.RoundToInt(sel.experience) + "   ·   Missions " + sel.missionsServed + "   ·   Wage " + sel.wage + TraitText(sel));
 
             Tint(skillsTab, detail == Detail.Skills);
             Tint(loadoutTab, detail == Detail.Loadout);
@@ -499,6 +499,14 @@ namespace Rambler.Crew.UI
                 if (i < count) shown.Add(list[i]);
             }
             return shown;
+        }
+
+        //A line per trait: "Pilot: +3 Piloting at the Navigation station"
+        static string TraitText(CharacterRecord r)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var t in r.Traits) sb.Append("\n<color=#F2B233><b>" + CrewTraits.Name(t) + "</b></color>: " + CrewTraits.Describe(t));
+            return sb.ToString();
         }
 
         static string StatusText(CharacterRecord r)

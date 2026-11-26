@@ -22,8 +22,10 @@ namespace Rambler.Crew.Battle
     //    Weapons     charges and fires at the enemy's hull, weapons or engines (needs someone on it)
     //    Engines     shares the ship's power pips out, and repairs damaged stations
     //    Systems     the ship map (doors, air) and how fast breaches are patched
+    //  The active player at a station sets it by hand; crew at a station run it themselves (ShipBattleCrew.cs).
+    //  Boarders raid stations (an empty one gets taken over and turned on the ship) or loot the hold.
     //  Win: the enemy hull reaches 0. Escape: the jump charges. Lose: your hull reaches 0 or the squad falls.
-    public class ShipBattle : MonoBehaviour
+    public partial class ShipBattle : MonoBehaviour
     {
         public static ShipBattle Instance { get; private set; }
         public event Action<string> Logged;
@@ -114,8 +116,8 @@ namespace Rambler.Crew.Battle
         void Awake()
         {
             Instance = this;
-            //The ship map is a station: it only works for whoever mans Ship Systems
-            ShipMapPanel.Access = () => State == BattleState.Fighting && IsManned(Station.Systems) && Effect(Station.Systems) > 0f;
+            //The ship map is a station: it only works while the player is at Ship Systems (crew there run it themselves)
+            ShipMapPanel.Access = () => State == BattleState.Fighting && IsPlayerControlled(Station.Systems) && Effect(Station.Systems) > 0f;
             ShipMapPanel.AccessNote = "";
         }
 
@@ -220,6 +222,8 @@ namespace Rambler.Crew.Battle
             if (!EnemyWeaponsDown && (volleyTimer -= dt) <= 0f) { volleyTimer = volleySeconds; StartCoroutine(Volley()); }
             if (!EnemyEnginesDown && (boardingTimer -= dt) <= 0f) { boardingTimer = boardingSeconds; Board(); }
 
+            CrewUpdate(dt);
+            if (State != BattleState.Fighting) return;
             if (!SquadAlive()) End(BattleState.Lost);
             Changed?.Invoke();
         }
@@ -231,13 +235,15 @@ namespace Rambler.Crew.Battle
         public bool IsDamaged(Station s) => damaged.Contains(s);
         public IEnumerable<Station> DamagedStations => damaged;
 
-        //What the crew bring: 60% at skill 0, 100% at 5, 140% at 10; unmanned stations limp along (Weapons not at all)
+        //What the crew bring: 60% at skill 0, 100% at 5, 140% at 10; unmanned stations limp along (Weapons not at all).
+        //A station boarders have taken does nothing for us; one being fought over works at half.
         public float CrewFactor(Station s)
         {
             if (damaged.Contains(s)) return 0f;
             var t = Terminal(s);
+            if (t != null && t.Hijacked) return 0f;
             if (t == null || t.Operator == null) return s == Station.Weapons ? 0f : unmannedFactor;
-            return 0.6f + 0.08f * t.OperatorSkill;
+            return (0.6f + 0.08f * t.OperatorSkill) * (t.Contested ? 0.5f : 1f);
         }
 
         //Crew times power: two pips is normal, four is double. Engines has no pips.
@@ -409,30 +415,15 @@ namespace Rambler.Crew.Battle
             {
                 var prefab = boarderPrefabs[boarderIndex++ % boarderPrefabs.Length];
                 if (prefab == null) continue;
-                var unit = points[UnityEngine.Random.Range(0, points.Count)].Spawn(prefab, transform);
+                var entry = points[UnityEngine.Random.Range(0, points.Count)];
+                var unit = entry.Spawn(prefab, transform);
                 unit.name = prefab.name + " (Boarder)";
                 unit.tag = "Enemy";
                 boarders.Add(unit);
                 if (spawner != null) spawner.RegisterEnemy(unit);
-                StartCoroutine(SendToStations(unit));
+                StartCoroutine(Boarder(unit, entry));
             }
             Log(count + " boarder" + (count == 1 ? "" : "s") + " cutting in through the hull!");
-        }
-
-        //Boarders head for a manned station
-        IEnumerator SendToStations(GameObject unit)
-        {
-            yield return null;
-            if (unit == null) yield break;
-            Vector3 goal = unit.transform.position;
-            var manned = new List<StationTerminal>();
-            foreach (var t in terminals.Values) if (t.Operator != null) manned.Add(t);
-            if (manned.Count == 0) manned.AddRange(terminals.Values);
-            if (manned.Count > 0) goal = manned[UnityEngine.Random.Range(0, manned.Count)].transform.position;
-            var brain = unit.GetComponent<Rambler.Control.EnemyAI>();
-            if (brain != null && brain.isActiveAndEnabled) { brain.HearOf(goal); yield break; }
-            var mover = unit.GetComponent<Mover>();
-            if (mover != null) mover.StartMoveAction(goal, 1f);
         }
 
         bool SquadAlive()
@@ -477,6 +468,8 @@ namespace Rambler.Crew.Battle
                 else company?.AddCredits(0); //Tells the screens something changed
             }
             else if (result == BattleState.Won && Company.Instance != null) Company.Instance.AddCredits(victoryReward);
+            //Cargo the boarders got away with comes off the Company's credits
+            if (CargoLost > 0 && Company.Instance != null) Company.Instance.Spend(Mathf.Min(CargoLost, Company.Instance.Credits));
 
             switch (result)
             {
